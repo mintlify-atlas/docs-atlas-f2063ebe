@@ -1,0 +1,151 @@
+---
+title: "Batch editing and multi-agent plans"
+description: "How to plan, validate, and apply batches of edits — including multi-agent coordination"
+---
+
+Safe Docx supports coordinated multi-agent editing through a planning workflow. Multiple agents can each produce a plan of edit steps, those plans are merged and conflict-checked, and then a single `apply_plan` call validates and applies everything atomically.
+
+## Planning tools overview
+
+<CardGroup cols={3}>
+  <Card title="init_plan" icon="flag">
+    Creates revision-bound context metadata and returns a plan with a base revision.
+  </Card>
+  <Card title="merge_plans" icon="code-merge">
+    Deterministically merges sub-agent plans and detects hard conflicts.
+  </Card>
+  <Card title="apply_plan" icon="circle-play">
+    Validates all steps first; applies only if all pass.
+  </Card>
+</CardGroup>
+
+## Step 1: Initialize a plan
+
+The orchestrator calls `init_plan` at the start of a multi-agent session. This binds the plan to the current document revision and returns a plan object that each sub-agent will extend:
+
+```json
+{
+  "file_path": "/absolute/path/to/Agreement.docx",
+  "plan_name": "Q1 Contract Review",
+  "orchestrator_id": "agent-orchestrator-01"
+}
+```
+
+`init_plan` returns a plan structure including a `base_revision` field. Sub-agents must include this base revision in their own plan outputs so that `merge_plans` can verify all plans share the same document snapshot.
+
+## Step 2: Sub-agents create edit steps
+
+Each sub-agent reads the document, identifies paragraphs to edit, and produces a list of edit steps. Each step must include a unique `step_id` and an `operation` field.
+
+### Supported operations
+
+<Tabs>
+  <Tab title="replace_text">
+    ```json
+    {
+      "step_id": "step-001",
+      "operation": "replace_text",
+      "target_paragraph_id": "_bk_42",
+      "old_string": "30 days notice",
+      "new_string": "15 days written notice",
+      "instruction": "Reduce notice period to 15 days"
+    }
+    ```
+  </Tab>
+  <Tab title="insert_paragraph">
+    ```json
+    {
+      "step_id": "step-002",
+      "operation": "insert_paragraph",
+      "positional_anchor_node_id": "_bk_55",
+      "new_string": "This Agreement is governed by the laws of the State of Delaware.",
+      "instruction": "Add governing law clause",
+      "position": "AFTER"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Step 3: Merge sub-agent plans
+
+The orchestrator collects all sub-agent plan outputs and passes them to `merge_plans`:
+
+```json
+{
+  "plans": [
+    { "base_revision": "abc123", "steps": [ { "step_id": "step-001", "operation": "replace_text", "target_paragraph_id": "_bk_42", "old_string": "30 days notice", "new_string": "15 days written notice", "instruction": "Reduce notice period" } ] },
+    { "base_revision": "abc123", "steps": [ { "step_id": "step-002", "operation": "insert_paragraph", "positional_anchor_node_id": "_bk_55", "new_string": "This Agreement is governed by the laws of the State of Delaware.", "instruction": "Add governing law clause", "position": "AFTER" } ] }
+  ],
+  "fail_on_conflict": true,
+  "require_shared_base_revision": true
+}
+```
+
+`merge_plans` detects hard conflicts — for example, two agents editing the same paragraph with incompatible changes — and returns the merged plan or an error.
+
+<Warning>
+  Set `require_shared_base_revision: true` when all sub-agents are working from the same document snapshot. This prevents a later agent from applying edits based on a stale revision.
+</Warning>
+
+## Step 4: Apply the merged plan
+
+Pass the merged plan to `apply_plan`. It validates every step before applying any of them. If any step fails validation, none are applied:
+
+```json
+{
+  "file_path": "/absolute/path/to/Agreement.docx",
+  "steps": [
+    {
+      "step_id": "step-001",
+      "operation": "replace_text",
+      "target_paragraph_id": "_bk_42",
+      "old_string": "30 days notice",
+      "new_string": "15 days written notice",
+      "instruction": "Reduce notice period to 15 days"
+    },
+    {
+      "step_id": "step-002",
+      "operation": "insert_paragraph",
+      "positional_anchor_node_id": "_bk_55",
+      "new_string": "This Agreement is governed by the laws of the State of Delaware.",
+      "instruction": "Add governing law clause",
+      "position": "AFTER"
+    }
+  ]
+}
+```
+
+Alternatively, write the steps to a `.json` file and pass `plan_file_path` instead of inline `steps`:
+
+```json
+{
+  "file_path": "/absolute/path/to/Agreement.docx",
+  "plan_file_path": "/absolute/path/to/agreement-plan.json"
+}
+```
+
+<Note>
+  `apply_plan` is compatible with `merge_plans` output. You can pass the merged plan object directly to `apply_plan` without reformatting.
+</Note>
+
+## Workflow summary
+
+```text
+orchestrator
+  └─ init_plan → base plan with revision
+       ├─ agent A reads doc → produces steps → sub-plan A
+       ├─ agent B reads doc → produces steps → sub-plan B
+       └─ merge_plans([sub-plan A, sub-plan B]) → merged plan
+            └─ apply_plan(merged plan) → edits applied atomically
+```
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Editing documents" icon="pen" href="/guides/editing-documents">
+    Understand the core edit operations used in plan steps.
+  </Card>
+  <Card title="Golden prompts" icon="star" href="/guides/golden-prompts">
+    Known-good prompt patterns for reliable agent behavior.
+  </Card>
+</CardGroup>

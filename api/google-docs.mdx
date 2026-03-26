@@ -1,0 +1,83 @@
+---
+title: "Google Docs support"
+description: "Using Safe Docx with Google Docs via the google_doc_id parameter"
+---
+
+Safe Docx supports Google Docs as an alternative to local `.docx` files. Tools that accept a `google_doc_id` parameter open and operate on a live Google Doc instead of a file on disk.
+
+## Optional dependency
+
+Google Docs support is provided by the optional peer dependency `@usejunior/google-docs-core`. It is loaded dynamically at runtime — if the package is not installed, tools will fall back to DOCX-only behavior. No startup error is thrown.
+
+## Providing a Google Doc ID
+
+You can pass either the raw document ID or the full URL:
+
+```
+// Raw ID
+1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms
+
+// Full URL (ID is extracted automatically)
+https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms/edit
+```
+
+Extract the ID from the URL segment between `/d/` and the next `/`.
+
+## Supported tools
+
+The following MCP tools accept `google_doc_id` as an alternative to `file_path`:
+
+| Tool | Description |
+|---|---|
+| `read_file` | Read document content |
+| `grep` | Search paragraphs with regex |
+| `replace_text` | Replace text in a paragraph, preserving formatting |
+| `insert_paragraph` | Insert a paragraph before/after an anchor |
+| `save` | Checkpoint or snapshot the document |
+| `format_layout` | Apply layout controls (paragraph spacing only — see below) |
+| `get_file_status` | Get session metadata and edit counts |
+| `close_file` | Close the session |
+
+Tools that accept only `file_path` (such as `compare_documents`, `add_comment`, `accept_changes`) operate on DOCX files only.
+
+## save behavior for Google Docs
+
+The `save` tool behaves differently for Google Docs:
+
+**Checkpoint (default)** — when `save_to_local_path` is not provided:
+- Edits are already persisted to Google Docs in real time; no additional write is performed
+- Returns `save_mode: 'checkpoint'` and the current `revision_id`
+- Use this to confirm the current revision after a batch of edits
+
+**Snapshot** — when `save_to_local_path` is provided:
+- Exports the Google Doc as a DOCX file to the specified local path
+- Returns `save_mode: 'snapshot'`, `revision_id`, and `saved_to` path
+
+```json
+// Checkpoint response
+{
+  "google_doc_id": "1BxiMVs0XRA5n...",
+  "save_mode": "checkpoint",
+  "revision_id": "AOV_f08...",
+  "is_revision_fresh": true,
+  "edit_count": 3,
+  "message": "Google Doc checkpoint: revision AOV_f08.... Edits are already persisted."
+}
+```
+
+## format_layout for Google Docs
+
+When using `format_layout` with a `google_doc_id`, only `paragraph_spacing` is supported. Attempting to pass `row_height` or `cell_padding` returns an `UNSUPPORTED_FOR_PROVIDER` error:
+
+```
+row_height is not supported for Google Docs.
+This parameter is only available for DOCX files.
+```
+
+Paragraph spacing maps OOXML twip values to Google Docs point-based spacing:
+
+| OOXML parameter | Google Docs API field |
+|---|---|
+| `before_twips` | `spaceAbove` (twips ÷ 20 = points) |
+| `after_twips` | `spaceBelow` (twips ÷ 20 = points) |
+| `line_twips` | `lineSpacing` (twips ÷ 240 × 100 = percentage) |

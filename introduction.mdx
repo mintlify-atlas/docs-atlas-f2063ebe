@@ -1,0 +1,63 @@
+---
+title: "Introduction"
+description: "Safe Docx is an open-source MCP server for surgical editing of existing Microsoft Word .docx files with AI coding agents."
+---
+
+## The problem
+
+AI coding agents are reliable with code and plain text files, but they break down on brownfield `.docx` editing. Standard Word files carry rich formatting, tracked changes, comments, footnotes, and structural metadata that text-based tools cannot safely touch. Applying AI-proposed edits directly to `.docx` files through generic tools corrupts formatting, destroys review semantics, and produces outputs that cannot be sent to legal, procurement, or finance counterparties.
+
+Business and legal workflows still run on Word documents. Contracts get reviewed, redlined, and signed as `.docx` files — not Markdown. If you want an AI agent to act on accepted recommendations, you need a tool path that preserves the document as it is.
+
+## The solution
+
+Safe Docx is a local MCP server that gives AI agents a typed, deterministic tool surface for editing existing Word files. It runs entirely on your machine via `npx`, communicates over stdio, and exposes structured tools for reading, searching, replacing text, inserting paragraphs, managing comments and footnotes, comparing documents, and extracting revisions as structured JSON.
+
+Because it is a local MCP server, no document content ever leaves your machine.
+
+## What Safe Docx is optimized for
+
+- **Brownfield editing** — applying changes to existing `.docx` files, not generating new ones from scratch
+- **Formatting preservation** — surgical `replace_text` and `insert_paragraph` operations that keep run and paragraph formatting intact
+- **Review workflows** — producing clean and tracked-changes output variants for human review
+- **Document comparison** — comparing an original and a revised file into a tracked-changes output with `compare_documents`
+- **Revision extraction** — pulling revision data as structured JSON with `extract_revisions`
+- **Comment and footnote management** — adding, reading, and deleting comment bubbles and footnotes as first-class operations
+
+## What Safe Docx is not for
+
+Safe Docx is not a from-scratch document generation toolkit. If your primary need is generating new `.docx` files from templates or programmatic layout, use a library such as [`docx`](https://www.npmjs.com/package/docx) instead.
+
+## Document families
+
+Safe Docx is built and tested against the complex legal and business documents that real workflows produce:
+
+| Document class | Examples |
+|---|---|
+| Non-disclosure agreements | Common Paper mutual NDA, Bonterms mutual NDA |
+| Letters of intent | LOI fixtures with defined term replacements |
+| Partnership agreements | ILPA limited partnership agreement redline fixtures |
+| Financing forms | NVCA financing forms, YC SAFEs |
+| Commercial agreements | Order forms, services agreements, offering memoranda |
+
+The same brownfield editing problems appear outside legal teams too — HR, procurement, sales ops, and finance all work with Word documents that agents should be able to edit safely.
+
+## Packages
+
+<CardGroup cols={3}>
+  <Card title="@usejunior/safe-docx" icon="box" href="/installation">
+    The canonical end-user install. Run with `npx -y @usejunior/safe-docx` to start the local stdio MCP server. This is the package you add to your MCP client config.
+  </Card>
+  <Card title="@usejunior/docx-mcp" icon="server">
+    The MCP server implementation. Contains the full tool surface: read/search, edit/layout, planning/batch, compare/revision, and comments/footnotes toolgroups. Used internally by `@usejunior/safe-docx`.
+  </Card>
+  <Card title="@usejunior/docx-core" icon="database">
+    The underlying TypeScript library with primitives and the comparison engine. Import this directly if you need to integrate `.docx` editing into application code rather than using the MCP server.
+  </Card>
+</CardGroup>
+
+Ready to get started? Follow the quickstart to have the MCP server running in minutes.
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+  Get the Safe Docx MCP server running in your AI client in under five minutes.
+</Card>

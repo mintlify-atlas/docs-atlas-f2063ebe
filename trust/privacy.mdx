@@ -1,0 +1,46 @@
+---
+title: "Privacy"
+description: How Safe Docx handles your documents and data
+---
+
+Safe Docx is designed to run entirely on your local machine. Understanding exactly where your document content goes — and where it does not — is important when working with sensitive legal, financial, or business documents.
+
+## Safe Docx itself does not transmit your documents
+
+The Safe Docx MCP server runs as a local process on your machine. It reads and writes files only on your local filesystem, subject to the [path policy](/trust/path-policy). It does not open any outbound network connections to external servers, does not upload document content to a Safe Docx or UseJunior service, and does not phone home for telemetry or analytics.
+
+<Note>
+The MCP server transport is `stdio`. Communication happens over standard input/output between the server process and your MCP client — not over a network socket.
+</Note>
+
+## Your AI provider receives document content
+
+When your AI assistant (Claude, Gemini, Cursor, or any other MCP-capable client) calls a Safe Docx tool, the tool result — which may include extracted document text or structured content — is returned to the AI model as part of the conversation. This is standard MCP architecture: tool responses flow back to the model so it can reason about them.
+
+This means your AI provider's infrastructure does see document content that Safe Docx extracts. Safe Docx does not control what your AI provider does with that content. Review the privacy policy of your AI provider for details on how they handle data passed through tool calls.
+
+<Warning>
+If your documents contain confidential information, verify your AI provider's data handling and retention policies before using any tool that reads document content.
+</Warning>
+
+## Session data is in memory only
+
+Safe Docx holds open document sessions in memory for the duration of your session. When you call `close_file` (with `clear_all: true`) or stop the MCP server process, that in-memory state is released. Safe Docx does not persist session data to disk beyond what you explicitly save with the `save` tool, and it does not write any logs containing document content.
+
+## Temporary files
+
+Some operations may write intermediate files to the system temporary directory (covered by the default path policy). These files are scoped to the session and are cleaned up as part of normal session teardown. You can verify this behavior by inspecting assumption A19 in the [assumption matrix](https://github.com/UseJunior/safe-docx/blob/main/packages/docx-mcp/assumptions.md).
+
+## Summary
+
+| What | Where it goes |
+|------|---------------|
+| Document content (extracted by tools) | Returned to your AI provider via MCP tool response |
+| Files you save | Written to your local filesystem only |
+| Session state | In memory; cleared when the session ends |
+| Telemetry or analytics | Not collected by Safe Docx |
+| External network calls | None made by Safe Docx |
+
+## UseJunior privacy policy
+
+For information about how UseJunior handles data associated with your account and usage of UseJunior services, see the [UseJunior privacy policy](https://usejunior.com/privacy_policy).

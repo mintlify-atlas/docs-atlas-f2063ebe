@@ -1,0 +1,123 @@
+---
+title: "Comparing documents"
+description: "How to produce tracked-changes output from two DOCX versions"
+---
+
+Safe Docx can compare two `.docx` files and produce a tracked-changes document that shows exactly what changed — at the character level.
+
+## Compare two documents
+
+Use `compare_documents` to diff an original and a revised file:
+
+```json
+{
+  "original_file_path": "/absolute/path/to/Agreement.v1.docx",
+  "revised_file_path": "/absolute/path/to/Agreement.v2.docx",
+  "save_to_local_path": "/absolute/path/to/Agreement.compare.tracked.docx",
+  "author": "Comparison"
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `original_file_path` | Yes | Path to the baseline document |
+| `revised_file_path` | Yes | Path to the modified document |
+| `save_to_local_path` | Yes | Where to write the tracked-changes output |
+| `author` | No | Author name stamped on revision marks. Defaults to `"Comparison"` |
+| `engine` | No | Comparison engine: `"auto"` (default) or `"atomizer"` |
+
+<Note>
+  You can also compare a session's in-memory edits against the original by passing `file_path` instead of `original_file_path` + `revised_file_path`. This is useful after applying edits with `replace_text` or `insert_paragraph`.
+</Note>
+
+## The atomizer engine
+
+The default engine (`"auto"`) uses the atomizer, a character-level comparison algorithm with move detection. It produces fine-grained revision marks that show individual word and character changes rather than whole-paragraph replacements.
+
+The atomizer is selected automatically for most document shapes. You can force it explicitly by setting `engine: "atomizer"`.
+
+<Tip>
+  Use `fail_on_rebuild_fallback: true` in `save` to return an error instead of a potentially destructive rebuild output if the engine falls back to an incompatible mode for table-heavy documents.
+</Tip>
+
+## Extract revisions as structured JSON
+
+After generating a tracked-changes document, use `extract_revisions` to get a structured JSON summary:
+
+```json
+{
+  "file_path": "/absolute/path/to/Agreement.compare.tracked.docx",
+  "offset": 0,
+  "limit": 50
+}
+```
+
+The response contains before/after text per paragraph, revision type (insertion, deletion, move), and associated paragraph IDs. Use `offset` and `limit` to paginate through documents with many revisions.
+
+## Accept tracked changes
+
+To finalize a tracked-changes document and produce a clean version with no revision markup:
+
+```json
+{
+  "file_path": "/absolute/path/to/Agreement.compare.tracked.docx"
+}
+```
+
+Call `accept_changes` — it returns acceptance stats (number of insertions, deletions, and move records accepted). You can also call `has_tracked_changes` first to check whether a document contains revision marks before processing.
+
+## Full workflow example
+
+<Steps>
+  <Step title="Compare the two versions">
+    ```json
+    {
+      "original_file_path": "/contracts/Agreement.v1.docx",
+      "revised_file_path": "/contracts/Agreement.v2.docx",
+      "save_to_local_path": "/contracts/Agreement.compare.tracked.docx",
+      "author": "Legal Review"
+    }
+    ```
+  </Step>
+  <Step title="Extract the top changed paragraphs">
+    ```json
+    {
+      "file_path": "/contracts/Agreement.compare.tracked.docx",
+      "offset": 0,
+      "limit": 10
+    }
+    ```
+  </Step>
+  <Step title="Accept changes to produce a clean final document">
+    ```json
+    {
+      "file_path": "/contracts/Agreement.compare.tracked.docx"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Golden prompt: compare two documents
+
+This prompt reliably produces a comparison and revision summary:
+
+```text
+Use safe-docx to compare these two files and generate a tracked-changes output document:
+- original: /absolute/path/to/Agreement.v1.docx
+- revised: /absolute/path/to/Agreement.v2.docx
+- output: /absolute/path/to/Agreement.compare.tracked.docx
+After generating the tracked-changes file, extract revisions and return:
+1) total revision count
+2) top 10 changed paragraphs with before/after text.
+```
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Editing documents" icon="pen" href="/guides/editing-documents">
+    Make surgical edits to a single document.
+  </Card>
+  <Card title="Golden prompts" icon="star" href="/guides/golden-prompts">
+    All known-good prompt patterns in one place.
+  </Card>
+</CardGroup>

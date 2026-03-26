@@ -1,0 +1,155 @@
+---
+title: "Comments and footnotes"
+description: "Managing comments and footnotes in Word documents with Safe Docx"
+---
+
+Safe Docx treats comments and footnotes as first-class operations. You can add, retrieve, update, and delete both — all without opening Word.
+
+## Comments
+
+### Add a comment
+
+Use `add_comment` to anchor a comment to a specific paragraph or a specific run of text within a paragraph:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx",
+  "target_paragraph_id": "_bk_17",
+  "anchor_text": "Risk Factors",
+  "author": "Jane Smith",
+  "initials": "JS",
+  "text": "This section needs tighter language — please clarify scope of disclosure."
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `target_paragraph_id` | For root comments | The `_bk_*` ID of the paragraph to anchor the comment to |
+| `anchor_text` | No | Specific text within the paragraph to anchor to. If omitted, anchors to the entire paragraph |
+| `author` | Yes | Display name for the comment author |
+| `text` | Yes | Comment body text |
+| `initials` | No | Author initials. Defaults to the first letter of `author` |
+| `parent_comment_id` | For replies | ID of the parent comment (see below) |
+
+### Add a threaded reply
+
+To reply to an existing comment, provide `parent_comment_id` instead of `target_paragraph_id`:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx",
+  "parent_comment_id": 3,
+  "author": "Alex Kim",
+  "text": "Agreed — I'll draft a revision."
+}
+```
+
+Replies are nested under the parent comment and returned together by `get_comments`.
+
+### Get all comments
+
+Use `get_comments` to retrieve all comments and replies with their IDs, authors, dates, text, and anchored paragraph IDs:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx"
+}
+```
+
+### Delete a comment
+
+Use `delete_comment` with the comment's integer ID. Deleting a root comment cascade-deletes all its threaded replies:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx",
+  "comment_id": 3
+}
+```
+
+<Warning>
+  Deleting a root comment permanently removes all its replies. There is no partial deletion — use `get_comments` first to inspect the thread if needed.
+</Warning>
+
+## Footnotes
+
+### Add a footnote
+
+Use `add_footnote` to insert a footnote reference into a paragraph. By default the reference appends at the end of the paragraph; use `after_text` to position it after a specific word or phrase:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx",
+  "target_paragraph_id": "_bk_17",
+  "after_text": "Risk Factors",
+  "text": "Source: Internal policy memo, rev 2026-02-01."
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `target_paragraph_id` | Yes | The `_bk_*` ID of the paragraph to anchor the footnote to |
+| `after_text` | No | Text after which to insert the footnote reference. If omitted, appends at end of paragraph |
+| `text` | Yes | Footnote body text |
+
+<Warning>
+  Footnote markers like `[^1]` in `read_file` output are display-only. They are not part of the editable paragraph text and cannot be used as `old_string` in `replace_text`. Use `get_footnotes` to find footnote IDs for update and delete operations.
+</Warning>
+
+### Get all footnotes
+
+Use `get_footnotes` to list all footnotes with their IDs, display numbers, body text, and the paragraph IDs they are anchored to:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx"
+}
+```
+
+### Update a footnote
+
+Use `update_footnote` with the footnote's integer `note_id` to change its body text:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx",
+  "note_id": 2,
+  "new_text": "Source: Internal policy memo, rev 2026-03-15."
+}
+```
+
+### Delete a footnote
+
+Use `delete_footnote` with the footnote's integer `note_id` to remove the footnote and its reference marker from the document:
+
+```json
+{
+  "file_path": "/absolute/path/to/Memo.docx",
+  "note_id": 2
+}
+```
+
+## Golden prompt: comment and footnote workflow
+
+This prompt reliably adds a comment and footnote to a document and returns their IDs:
+
+```text
+Use safe-docx on /absolute/path/to/Memo.docx.
+1) Find the paragraph that starts with "Risk Factors".
+2) Add a comment requesting tighter language.
+3) Add a footnote to the same paragraph with citation text:
+   "Source: Internal policy memo, rev 2026-02-01."
+4) Save tracked-changes output to /absolute/path/to/Memo.review.tracked.docx
+Return the comment ID and footnote ID created.
+```
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Editing documents" icon="pen" href="/guides/editing-documents">
+    Make surgical text edits with formatting preservation.
+  </Card>
+  <Card title="Golden prompts" icon="star" href="/guides/golden-prompts">
+    All known-good prompt patterns in one place.
+  </Card>
+</CardGroup>

@@ -1,97 +1,71 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Safe Docx"
+description: "Surgical, formatting-preserving edits to existing Word documents — powered by AI agents."
 ---
 
-## Setting up
+Safe Docx is an open-source TypeScript stack that lets coding agents edit existing Microsoft Word `.docx` files with full formatting preservation. Install it as an MCP server in seconds and start applying deterministic, reviewable edits to real documents.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get the MCP server running in under two minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Installation by client" icon="plug" href="/installation">
+    Setup instructions for Claude, Gemini CLI, Cline, and more.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core workflows" icon="file-pen" href="/guides/editing-documents">
+    Edit text, insert paragraphs, and save tracked-changes output.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Tool reference" icon="book" href="/tools/read-search">
+    Full reference for all 20+ MCP tools.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why Safe Docx
 
-Everything you need to create world-class documentation.
+AI coding tools are great with code, but weak on brownfield `.docx` editing. Business and legal workflows still run on Word documents — NDAs, SOWs, financing forms, partnership agreements.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+Safe Docx bridges that gap:
 
-## Need inspiration?
+- **Formatting-preserving edits** — `replace_text` and `insert_paragraph` operate at the run level, never destroying paragraph structure or inline styles.
+- **Tracked-changes output** — every edit session can produce a clean copy and a redlined version for human review.
+- **Local-first** — runs as a local MCP server process; no document content is sent to external servers.
+- **No Python or .NET** — pure TypeScript runtime using `jszip` + `@xmldom/xmldom`.
+- **Google Docs support** — the same tool surface works on Google Docs via `google_doc_id`.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## What it's optimized for
+
+<CardGroup cols={2}>
+  <Card title="Editing existing documents" icon="pen-to-square">
+    Surgical text replacement and paragraph insertion on real Word files without formatting loss.
+  </Card>
+  <Card title="Document comparison" icon="code-compare">
+    Compare original and revised DOCX files to produce a tracked-changes redline.
+  </Card>
+  <Card title="Comment & footnote workflows" icon="comment">
+    Add, read, and delete comment threads and footnotes as first-class operations.
+  </Card>
+  <Card title="Multi-agent batch editing" icon="layer-group">
+    Plan, merge, and apply batches of edits from multiple agents with conflict detection.
+  </Card>
+</CardGroup>
+
+## Get started
+
+<Steps>
+  <Step title="Install the MCP server">
+    Run the server directly — no install required:
+    ```bash
+    npx -y @usejunior/safe-docx
+    ```
+  </Step>
+  <Step title="Add to your AI client">
+    Configure your MCP client (Claude Desktop, Claude Code, Gemini CLI, Cline) to use the server. See the [installation guide](/installation) for client-specific instructions.
+  </Step>
+  <Step title="Start editing documents">
+    Use natural language with your AI agent to read, edit, compare, and save `.docx` files. See [golden prompts](/guides/golden-prompts) for reliable starting patterns.
+  </Step>
+</Steps>
+
+<Note>
+  Safe Docx is optimized for editing **existing** Word files. For creating new documents from scratch, use a generation-oriented library like [`docx`](https://www.npmjs.com/package/docx).
+</Note>

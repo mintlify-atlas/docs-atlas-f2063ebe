@@ -1,0 +1,130 @@
+---
+title: "Golden prompts"
+description: "Known-good prompt patterns for reliable Safe Docx results with AI agents"
+---
+
+Golden prompts are prompt patterns that consistently produce correct first-run behavior with Safe Docx. Use them as starting points for your own agent instructions.
+
+## Tips for structuring prompts
+
+<CardGroup cols={2}>
+  <Card title="Use absolute paths" icon="folder-open">
+    Always specify full absolute paths for input and output files. Relative paths are more likely to be misinterpreted or rejected by the path policy.
+  </Card>
+  <Card title="Name output files explicitly" icon="file">
+    Tell the agent exactly where to save each output, including both clean and tracked variants. Do not leave the output path implicit.
+  </Card>
+  <Card title="Ask for a summary" icon="list">
+    Request a summary of what changed and which paragraph IDs were edited. This gives you an audit trail and surfaces errors early.
+  </Card>
+  <Card title="Sequence the steps" icon="list-ol">
+    Number your instructions. Agents follow numbered steps more reliably than prose paragraphs.
+  </Card>
+</CardGroup>
+
+---
+
+## Prompt 1: Apply edits to one document
+
+```text
+Use safe-docx to edit /absolute/path/to/Agreement.docx.
+1) Read the file and identify the paragraph IDs that contain "Term" and "Termination".
+2) Replace the clause text in those paragraphs with clearer language while preserving formatting.
+3) Save both outputs:
+   - clean: /absolute/path/to/Agreement.clean.docx
+   - tracked changes: /absolute/path/to/Agreement.tracked.docx
+Return a short summary of what changed and list the paragraph IDs edited.
+```
+
+**Why this works:**
+
+- Instructs the agent to read first and identify paragraph IDs before editing. Skipping this step is the most common cause of failures.
+- Asks for both clean and tracked outputs, so reviewers can see the final document and the diff side by side.
+- Requests a summary with paragraph IDs, creating an audit trail and making it easy to verify the correct paragraphs were edited.
+- Uses absolute paths throughout, avoiding path policy rejections.
+
+---
+
+## Prompt 2: Compare two documents
+
+```text
+Use safe-docx to compare these two files and generate a tracked-changes output document:
+- original: /absolute/path/to/Agreement.v1.docx
+- revised: /absolute/path/to/Agreement.v2.docx
+- output: /absolute/path/to/Agreement.compare.tracked.docx
+After generating the tracked-changes file, extract revisions and return:
+1) total revision count
+2) top 10 changed paragraphs with before/after text.
+```
+
+**Why this works:**
+
+- Specifies both input files and the output path explicitly, leaving nothing for the agent to infer.
+- Asks the agent to call `extract_revisions` after `compare_documents`, which surfaces the actual change content rather than just confirming a file was written.
+- Requesting a revision count and top-10 changed paragraphs forces the agent to process and summarize the output, catching silent failures.
+- The character-level atomizer engine runs by default, so no engine configuration is needed for standard comparisons.
+
+---
+
+## Prompt 3: Comment and footnote workflow
+
+```text
+Use safe-docx on /absolute/path/to/Memo.docx.
+1) Find the paragraph that starts with "Risk Factors".
+2) Add a comment requesting tighter language.
+3) Add a footnote to the same paragraph with citation text:
+   "Source: Internal policy memo, rev 2026-02-01."
+4) Save tracked-changes output to /absolute/path/to/Memo.review.tracked.docx
+Return the comment ID and footnote ID created.
+```
+
+**Why this works:**
+
+- Asks the agent to find the paragraph by its content before acting, rather than guessing an ID. This ensures the anchor is correct even if paragraph numbering shifts between reads.
+- Separates the comment and footnote steps clearly. Combining them in one instruction can cause agents to skip one.
+- Requesting the comment ID and footnote ID confirms that both operations completed and gives you handles for future `delete_comment` or `update_footnote` calls.
+- Saving a tracked-changes output makes the additions visible in Word without accepting them first.
+
+---
+
+## Common failure modes
+
+<AccordionGroup>
+  <Accordion title="Wrong paragraph ID">
+    The agent used a paragraph ID from a previous session, a different document, or guessed an ID without reading the file first.
+
+    **Fix:** Always instruct the agent to call `read_file` or `grep` first and capture the paragraph IDs before making any edits. Never reuse IDs across documents.
+  </Accordion>
+  <Accordion title="File path not allowed by path policy">
+    Safe Docx rejected a file path because it falls outside the allowed roots (`HOME` and system temp by default).
+
+    **Fix:** Use absolute paths within your home directory or system temp. If you need to edit files elsewhere, check the path policy configuration for your installation.
+  </Accordion>
+  <Accordion title="old_string match failed">
+    `replace_text` could not find `old_string` in the target paragraph. This usually happens because the text is fragmented across formatting runs, or because the string includes a footnote marker like `[^1]` that is display-only.
+
+    **Fix:** Set `normalize_first: true` to merge adjacent runs before searching. Remove any `[^N]` markers from `old_string` — they are not part of the editable text.
+  </Accordion>
+  <Accordion title="Agent edited the wrong paragraph">
+    The agent matched on a paragraph ID that looked correct but contained similar text in a different section.
+
+    **Fix:** Use `grep` with a specific pattern to narrow down candidates, then confirm the paragraph content with `read_file` using `node_ids` before calling `replace_text`.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Editing documents" icon="pen" href="/guides/editing-documents">
+    Core editing workflow with paragraph IDs and save options.
+  </Card>
+  <Card title="Comparing documents" icon="code-compare" href="/guides/comparing-documents">
+    Produce tracked-changes output from two DOCX versions.
+  </Card>
+  <Card title="Comments and footnotes" icon="comment" href="/guides/comments-and-footnotes">
+    Add, retrieve, and delete comments and footnotes.
+  </Card>
+  <Card title="Batch editing" icon="layer-group" href="/guides/batch-editing">
+    Multi-agent planning with init_plan, merge_plans, and apply_plan.
+  </Card>
+</CardGroup>

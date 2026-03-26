@@ -1,0 +1,73 @@
+---
+title: "Path policy"
+description: How Safe Docx controls which filesystem paths the MCP server can read and write
+---
+
+The path policy is Safe Docx's primary filesystem security boundary. Every `file_path` argument passed to any MCP tool is checked against a set of allowed roots before the server reads or writes anything. If the path falls outside those roots, the operation is refused and no file is accessed.
+
+## Default allowed roots
+
+By default, Safe Docx permits access to two roots:
+
+- Your **HOME directory** (`$HOME`)
+- The **system temporary directory** (the value returned by `os.tmpdir()`, typically `/tmp` on Linux/macOS or `%TEMP%` on Windows)
+
+This means any `.docx` file stored under your home folder or in a temp directory is accessible without additional configuration. Files outside these roots — for example, `/etc`, `/var`, or another user's home directory — are blocked.
+
+## Symlink handling
+
+Before any path is checked against the allowed roots, Safe Docx resolves it to its canonical real path using `fs.realpath`. This ensures that a symlink pointing outside the allowed roots cannot be used to escape the policy.
+
+For example, if you create a symlink at `~/docs/secret -> /etc/passwd`, a read attempt on `~/docs/secret` will resolve to `/etc/passwd`, fail the root check, and be refused with an error.
+
+<Warning>
+Symlink escape is blocked by design. The resolved real path must fall inside an allowed root — the unresolved input path is not sufficient.
+</Warning>
+
+For write operations, Safe Docx walks up the directory tree to find the nearest existing ancestor, resolves that ancestor to its real path, and appends the remaining path segments. This prevents symlink escapes even when the target file does not yet exist.
+
+## Configuring allowed roots
+
+You can override the default roots by setting the `SAFE_DOCX_ALLOWED_ROOTS` environment variable to a colon-separated list of absolute paths (semicolon-separated on Windows, following the platform path delimiter).
+
+```bash
+export SAFE_DOCX_ALLOWED_ROOTS="/home/alice/documents:/mnt/shared/contracts"
+```
+
+When `SAFE_DOCX_ALLOWED_ROOTS` is set, it **replaces** the defaults entirely — `$HOME` and the system temp directory are no longer included unless you list them explicitly.
+
+```bash
+# Include HOME and a custom mount alongside the defaults
+export SAFE_DOCX_ALLOWED_ROOTS="$HOME:/tmp:/mnt/shared/contracts"
+```
+
+<Tip>
+Always use absolute paths in `SAFE_DOCX_ALLOWED_ROOTS`. Relative entries are resolved from the working directory of the MCP server process, which may not be what you expect.
+</Tip>
+
+## What happens when a path is rejected
+
+When a path fails the policy check, the tool returns a structured error response instead of performing the operation. No file is read or written. The error includes:
+
+- **Error code**: `PATH_NOT_ALLOWED`
+- **Message**: the original input path and the resolved real path
+- **Hint**: the currently active allowed roots, and a reminder to set `SAFE_DOCX_ALLOWED_ROOTS` if needed
+
+Example error payload:
+
+```json
+{
+  "code": "PATH_NOT_ALLOWED",
+  "message": "Refusing to read path outside allowed roots: /etc/passwd -> /etc/passwd",
+  "hint": "Allowed roots: /home/alice, /tmp. Configure SAFE_DOCX_ALLOWED_ROOTS if needed."
+}
+```
+
+If the path cannot be resolved at all (for example, the file does not exist on a read attempt), the error code is `PATH_RESOLUTION_ERROR` instead.
+
+## Practical guidance
+
+- **Use absolute paths** when passing `file_path` to any tool. Tilde expansion (`~/`) is supported, but fully qualified paths remove ambiguity.
+- **Place documents inside HOME or a temp directory** to use the defaults without any additional configuration.
+- **Do not store documents at paths that require elevated privileges** (e.g., `/etc`, `/usr`). Even if you add those paths to `SAFE_DOCX_ALLOWED_ROOTS`, the MCP server process must have OS-level read/write permission.
+- **When running in a container or restricted environment**, set `SAFE_DOCX_ALLOWED_ROOTS` explicitly to match the volume mounts or directories your workflow uses.

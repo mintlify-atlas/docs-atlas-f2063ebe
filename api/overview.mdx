@@ -1,0 +1,69 @@
+---
+title: "Library overview"
+description: "Using @usejunior/docx-core directly in your TypeScript or JavaScript application"
+---
+
+`@usejunior/docx-core` is the production engine behind Safe Docx. It provides the primitives, comparison engine, and track-changes infrastructure used by the MCP server — packaged for direct import in any TypeScript or JavaScript application.
+
+Primary capabilities:
+
+- Tracked-change comparison output for review workflows
+- Revision extraction and OOXML-safe document primitives
+- Formatting-preserving text and paragraph operations
+- Comment and footnote primitive support
+
+## When to use it directly
+
+Use `@usejunior/docx-core` when you need to:
+
+- Run document comparison programmatically inside your own server or serverless function
+- Build tooling on top of the OOXML primitives (accept/reject changes, add comments, etc.)
+- Integrate Safe Docx into a pipeline without a running MCP server
+
+Use `@usejunior/safe-docx` via `npx` when you want the MCP server for agent-driven editing workflows where a coding assistant (Claude, Cursor, etc.) invokes tools.
+
+## Installation
+
+```bash
+npm install @usejunior/docx-core
+```
+
+## Quickstart
+
+```typescript
+import { readFile, writeFile } from 'node:fs/promises';
+import { compareDocuments } from '@usejunior/docx-core';
+
+const original = await readFile('./original.docx');
+const revised = await readFile('./revised.docx');
+
+const result = await compareDocuments(original, revised, {
+  author: 'Comparison',
+  // engine defaults to 'auto' (atomizer)
+});
+
+await writeFile('./output.redline.docx', result.document);
+console.log(result.engine, result.stats);
+// => 'atomizer' { insertions: 3, deletions: 1, modifications: 0 }
+```
+
+See [compareDocuments](/api/compare-documents) for the full API reference.
+
+## Runtime requirements
+
+| Requirement | Detail |
+|---|---|
+| Node.js | >= 18.0.0 |
+| Cloudflare Workers | Supported |
+| Vercel Functions | Supported |
+| AWS Lambda / Lambda@Edge | Supported |
+| Any V8 isolate | Supported |
+
+## Dependency footprint
+
+Runtime dependencies are intentionally minimal:
+
+- [`@xmldom/xmldom`](https://www.npmjs.com/package/@xmldom/xmldom) — XML DOM handling
+- [`jszip`](https://www.npmjs.com/package/jszip) — DOCX zip container handling
+
+No native binaries. No .NET prerequisite. The package works in any standard JavaScript runtime.

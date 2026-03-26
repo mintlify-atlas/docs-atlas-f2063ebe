@@ -1,0 +1,129 @@
+---
+title: "Installation"
+description: "Install the Safe Docx MCP server across different AI clients."
+---
+
+**Runtime requirement:** Node.js >= 18.
+
+Safe Docx uses `npx` for all clients — no global install required. The server command is always:
+
+```
+npx -y @usejunior/safe-docx
+```
+
+## Client setup
+
+<Tabs>
+  <Tab title="Claude Desktop">
+    Open your Claude Desktop config file:
+
+    - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+    - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+    Add the `safe-docx` entry to the `mcpServers` object:
+
+    ```json
+    {
+      "mcpServers": {
+        "safe-docx": {
+          "command": "npx",
+          "args": ["-y", "@usejunior/safe-docx"]
+        }
+      }
+    }
+    ```
+
+    Restart Claude Desktop. The server starts automatically when Claude launches.
+  </Tab>
+
+  <Tab title="Claude Code">
+    Run this command in your terminal:
+
+    ```bash
+    claude mcp add safe-docx -- npx -y @usejunior/safe-docx
+    ```
+
+    This registers the server in your Claude Code MCP configuration. No manual config file editing required.
+  </Tab>
+
+  <Tab title="Gemini CLI">
+    Install from the extension gallery, or add manually to your Gemini CLI settings:
+
+    ```json
+    {
+      "mcpServers": {
+        "safe-docx": {
+          "command": "npx",
+          "args": ["-y", "@usejunior/safe-docx"]
+        }
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Cline / VS Code">
+    Add to your Cline MCP settings file (`cline_mcp_settings.json`):
+
+    ```json
+    {
+      "mcpServers": {
+        "safe-docx": {
+          "command": "npx",
+          "args": ["-y", "@usejunior/safe-docx"]
+        }
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Generic MCP client">
+    Any MCP client that supports stdio transport can use Safe Docx. Configure with:
+
+    - **Command:** `npx`
+    - **Arguments:** `["-y", "@usejunior/safe-docx"]`
+    - **Transport:** `stdio`
+
+    Example JSON config:
+
+    ```json
+    {
+      "mcpServers": {
+        "safe-docx": {
+          "command": "npx",
+          "args": ["-y", "@usejunior/safe-docx"]
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Runtime options
+
+Safe Docx includes archive guardrails that reject suspicious `.docx` files before processing them. You can tune these limits with environment variables.
+
+| Variable | Default | Description |
+|---|---|---|
+| `SAFE_DOCX_MAX_ARCHIVE_ENTRIES` | `2000` | Maximum number of entries allowed in the `.docx` zip archive. |
+| `SAFE_DOCX_MAX_UNCOMPRESSED_BYTES` | `209715200` | Maximum total uncompressed size in bytes (200 MB). |
+| `SAFE_DOCX_MAX_COMPRESSION_RATIO` | `200` | Maximum allowed compression ratio. Archives that exceed this ratio are rejected as potential zip bombs. |
+
+To set an environment variable, pass it in your MCP client config. For example, in Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "safe-docx": {
+      "command": "npx",
+      "args": ["-y", "@usejunior/safe-docx"],
+      "env": {
+        "SAFE_DOCX_MAX_ARCHIVE_ENTRIES": "5000"
+      }
+    }
+  }
+}
+```
+
+<Note>
+  Safe Docx runs entirely as a local process on your machine. It reads and writes local filesystem paths only. No document content is sent to external servers.
+</Note>

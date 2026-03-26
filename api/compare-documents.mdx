@@ -1,0 +1,158 @@
+---
+title: "compareDocuments"
+description: "Compare two DOCX documents and produce a tracked-changes output"
+---
+
+## Function signature
+
+```typescript
+compareDocuments(
+  original: Buffer,
+  revised: Buffer,
+  options?: CompareOptions
+): Promise<CompareResult>
+```
+
+Compares two DOCX documents and returns a new DOCX with tracked-change markup that Word, Google Docs, and LibreOffice can display and accept/reject.
+
+## Example
+
+```typescript
+import { readFile, writeFile } from 'node:fs/promises';
+import { compareDocuments } from '@usejunior/docx-core';
+
+const original = await readFile('./contract-v1.docx');
+const revised = await readFile('./contract-v2.docx');
+
+const result = await compareDocuments(original, revised, {
+  author: 'Legal Review',
+  ignoreFormatting: true,
+  reconstructionMode: 'rebuild',
+});
+
+await writeFile('./contract-redline.docx', result.document);
+
+console.log('Engine used:', result.engine);
+console.log('Stats:', result.stats);
+// => Stats: { insertions: 12, deletions: 4, modifications: 0 }
+```
+
+## Parameters
+
+<ParamField path="original" type="Buffer" required>
+  The original document as a Node.js `Buffer`. Read from disk with `fs.readFile` or receive from any source that returns binary data.
+</ParamField>
+
+<ParamField path="revised" type="Buffer" required>
+  The revised document as a Node.js `Buffer`.
+</ParamField>
+
+<ParamField path="options" type="CompareOptions">
+  Optional comparison configuration.
+
+  <Expandable title="CompareOptions fields">
+    <ParamField path="options.author" type="string">
+      Author name written into revision tracking (`w:author`). Default: `"Comparison"`.
+    </ParamField>
+
+    <ParamField path="options.date" type="Date">
+      Revision timestamp used for generated track changes (`w:date`). Default: current time.
+    </ParamField>
+
+    <ParamField path="options.ignoreFormatting" type="boolean">
+      Ignore formatting differences when comparing. Default: `true`.
+    </ParamField>
+
+    <ParamField path="options.premergeRuns" type="boolean">
+      Atomizer-only normalization: merge adjacent `<w:r>` siblings with identical formatting before comparison. Reduces overly-granular diffs for heavily-fragmented documents. Default: `true`.
+    </ParamField>
+
+    <ParamField path="options.reconstructionMode" type="'rebuild' | 'inplace'">
+      How to reconstruct the output DOCX when using the atomizer engine:
+      - `'rebuild'` — rebuilds `document.xml` from scratch. More stable accept/reject behavior.
+      - `'inplace'` — modifies the revised document AST in place. More experimental.
+
+      Default: `'rebuild'`. See [Comparison options reference](/api/comparison-options) for details.
+    </ParamField>
+
+    <ParamField path="options.engine" type="'wmlcomparer' | 'atomizer' | 'auto'">
+      Comparison engine to use:
+      - `'atomizer'` — character-level comparison with move detection (recommended)
+      - `'auto'` — automatically selects the best available engine (currently `'atomizer'`)
+      - `'wmlcomparer'` — .NET WmlComparer; only available through the benchmark CLI, not programmatic access
+
+      Default: `'auto'`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Return value
+
+`Promise<CompareResult>`
+
+<ResponseField name="document" type="Buffer" required>
+  The resulting DOCX file with track-change markup. Write to disk or return as a response body.
+</ResponseField>
+
+<ResponseField name="stats" type="CompareStats" required>
+  Counts of changes detected in the comparison.
+
+  <Expandable title="CompareStats fields">
+    <ResponseField name="stats.insertions" type="number">
+      Number of inserted text runs.
+    </ResponseField>
+    <ResponseField name="stats.deletions" type="number">
+      Number of deleted text runs.
+    </ResponseField>
+    <ResponseField name="stats.modifications" type="number">
+      Number of modifications (format or property changes).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="engine" type="'wmlcomparer' | 'atomizer'" required>
+  Which engine was used to produce the output.
+</ResponseField>
+
+<ResponseField name="reconstructionModeRequested" type="'rebuild' | 'inplace'">
+  The reconstruction mode requested via options. Present for atomizer outputs.
+</ResponseField>
+
+<ResponseField name="reconstructionModeUsed" type="'rebuild' | 'inplace'">
+  The reconstruction mode that was actually used to produce the output. May differ from `reconstructionModeRequested` if the atomizer fell back. Present for atomizer outputs.
+</ResponseField>
+
+<ResponseField name="fallbackReason" type="'round_trip_safety_check_failed'">
+  Why the requested reconstruction mode could not be used. Present only when the atomizer falls back from `'inplace'` to `'rebuild'`.
+</ResponseField>
+
+<ResponseField name="fallbackDiagnostics" type="ReconstructionFallbackDiagnostics">
+  Detailed safety-check diagnostics for the fallback decision. Present only when the atomizer falls back. See [Comparison options reference](/api/comparison-options) for the full type.
+</ResponseField>
+
+## Removed engine
+
+The `'diffmatch'` engine has been removed from the public API. Passing `engine: 'diffmatch'` throws:
+
+```
+Error: The 'diffmatch' engine has been removed from the public API.
+Use engine: 'atomizer' (recommended) or 'auto'.
+```
+
+Use `'atomizer'` or `'auto'` instead.
+
+## Detecting fallback
+
+To detect when the atomizer falls back from `'inplace'` to `'rebuild'` mode (which may affect table structure fidelity), check `result.reconstructionModeUsed`:
+
+```typescript
+const result = await compareDocuments(original, revised, {
+  reconstructionMode: 'inplace',
+});
+
+if (result.reconstructionModeUsed !== result.reconstructionModeRequested) {
+  console.warn('Fell back to rebuild mode:', result.fallbackReason);
+}
+```
+
+Or use the `fail_on_rebuild_fallback` option in the MCP `save` tool to surface this as an error automatically.

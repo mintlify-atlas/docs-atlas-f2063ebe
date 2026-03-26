@@ -1,0 +1,256 @@
+---
+title: "Document primitives"
+description: "Low-level OOXML editing primitives exported from @usejunior/docx-core"
+---
+
+The primitives are the low-level OOXML building blocks used internally by the MCP tools and the comparison engine. They are exported from `@usejunior/docx-core` for direct use when you need fine-grained control over document structure.
+
+<Note>
+  Most users work with the MCP tools or `compareDocuments` rather than primitives directly. Use primitives when building custom tooling on top of the library.
+</Note>
+
+## DocxDocument and DocxZip
+
+The two primary container classes.
+
+### `DocxZip`
+
+Low-level DOCX zip container. Reads and writes named XML parts within the `.docx` package.
+
+```typescript
+import { DocxZip } from '@usejunior/docx-core';
+
+const zip = await DocxZip.load(buffer);
+const xml = await zip.readText('word/document.xml');
+zip.writeText('word/document.xml', modifiedXml);
+const outputBuffer = await zip.toBuffer();
+```
+
+Key methods:
+
+| Method | Description |
+|---|---|
+| `DocxZip.load(buffer)` | Load a DOCX buffer into a zip instance |
+| `readText(path)` | Read a zip entry as a UTF-8 string (throws if missing) |
+| `readTextOrNull(path)` | Read a zip entry, returns `null` if not present |
+| `writeText(path, text)` | Write or overwrite a zip entry |
+| `hasFile(path)` | Check whether a zip entry exists |
+| `listFiles()` | List all entry paths in the zip |
+| `toBuffer()` | Serialize the zip back to a `Buffer` |
+
+Additional standalone helpers:
+
+```typescript
+createZipBuffer(files, opts?): Promise<Buffer>
+readZipText(buffer, path): Promise<string | null>
+inspectZipEntries(buffer): Promise<ZipEntryInfo[]>
+```
+
+### `DocxDocument`
+
+High-level document object providing typed access to paragraphs, text, comments, footnotes, and layout. Used internally by the MCP session layer.
+
+```typescript
+import { DocxDocument } from '@usejunior/docx-core';
+
+const doc = await DocxDocument.load(buffer);
+doc.insertParagraphBookmarks('session-id');
+const { paragraphs } = doc.readParagraphs();
+```
+
+## Text operations
+
+Exported from `primitives/text.ts`.
+
+```typescript
+import {
+  getParagraphText,
+  getParagraphRuns,
+  replaceParagraphTextRange,
+  splitRunAtVisibleOffset,
+} from '@usejunior/docx-core';
+```
+
+| Export | Description |
+|---|---|
+| `getParagraphText(p)` | Extract visible text from a `w:p` element, field-code aware |
+| `getParagraphRuns(p)` | Get typed `TextRun[]` with run elements and their visible text |
+| `replaceParagraphTextRange(p, start, end, replacement)` | Replace a character range in a paragraph, preserving run formatting |
+| `splitRunAtVisibleOffset(run, offset)` | Split a `w:r` at a visible character offset |
+
+`replaceParagraphTextRange` accepts either a plain string or a `ReplacementPart[]` array for multi-segment replacements with per-segment formatting overrides.
+
+## Run normalization
+
+Exported from `primitives/merge_runs.ts`.
+
+```typescript
+import { mergeRuns, parseXml } from '@usejunior/docx-core';
+
+const doc = parseXml(documentXmlString);
+const result = mergeRuns(doc);
+// result: { runsMerged: number; proofErrRemoved: number }
+```
+
+Merges adjacent `w:r` elements with identical `w:rPr` formatting. Takes a W3C DOM `Document`. Run fragmentation is common in documents edited in Word and can cause text-search mismatches.
+
+## Comment operations
+
+Exported from `primitives/comments.ts`.
+
+```typescript
+import {
+  bootstrapCommentParts,
+  addComment,
+  addCommentReply,
+  getComments,
+  getComment,
+  deleteComment,
+} from '@usejunior/docx-core';
+```
+
+| Export | Description |
+|---|---|
+| `bootstrapCommentParts(zip)` | Create `comments.xml`, `commentsExtended.xml`, and `people.xml` if missing (idempotent) |
+| `addComment(documentXml, zip, params)` | Insert a root comment anchored to a text range in a paragraph |
+| `addCommentReply(documentXml, zip, params)` | Add a threaded reply to an existing comment |
+| `getComments(zip, documentXml)` | Read all comments including threaded replies |
+| `getComment(zip, documentXml, commentId)` | Get a single comment by ID |
+| `deleteComment(documentXml, zip, params)` | Delete a comment and all its descendants |
+
+The `Comment` type returned by `getComments`:
+
+```typescript
+type Comment = {
+  id: number;
+  author: string;
+  date: string;
+  initials: string;
+  text: string;
+  paragraphId: string | null;         // w14:paraId of the comment's w:p
+  anchoredParagraphId: string | null; // _bk_* bookmark of the anchored paragraph
+  replies: Comment[];                  // threaded replies
+};
+```
+
+## Footnote operations
+
+Exported from `primitives/footnotes.ts`.
+
+```typescript
+import {
+  bootstrapFootnoteParts,
+  getFootnotes,
+  getFootnote,
+  addFootnote,
+  updateFootnoteText,
+  deleteFootnote,
+} from '@usejunior/docx-core';
+```
+
+| Export | Description |
+|---|---|
+| `bootstrapFootnoteParts(zip)` | Create `footnotes.xml` if missing (idempotent) |
+| `getFootnotes(zip, documentXml)` | Read all footnotes with display numbers and anchor paragraph IDs |
+| `getFootnote(zip, documentXml, noteId)` | Get a single footnote by ID |
+| `addFootnote(documentXml, zip, params)` | Insert a footnote reference into a paragraph |
+| `updateFootnoteText(zip, params)` | Update the text of an existing footnote |
+| `deleteFootnote(documentXml, zip, params)` | Delete a footnote and its reference run |
+
+## Layout operations
+
+Exported from `primitives/layout.ts`.
+
+```typescript
+import {
+  setParagraphSpacing,
+  setTableRowHeight,
+  setTableCellPadding,
+} from '@usejunior/docx-core';
+```
+
+| Export | Description |
+|---|---|
+| `setParagraphSpacing(doc, mutation)` | Apply before/after/line spacing to named paragraphs |
+| `setTableRowHeight(doc, mutation)` | Set row height on table rows by table and row index |
+| `setTableCellPadding(doc, mutation)` | Set cell padding on table cells |
+
+All layout mutations accept twip (twentieth of a point) values consistent with OOXML.
+
+## Revision operations
+
+### Accept changes
+
+```typescript
+import { acceptChanges } from '@usejunior/docx-core';
+
+const result = acceptChanges(doc);
+// result: AcceptChangesResult
+// { insertionsAccepted, deletionsAccepted, movesResolved, propertyChangesResolved }
+```
+
+Accepts all tracked changes in the document body. Takes a W3C DOM `Document` (parsed with `parseXml`) and mutates it in place.
+
+### Reject changes
+
+```typescript
+import { rejectChanges } from '@usejunior/docx-core';
+
+const result = rejectChanges(doc);
+// result: RejectChangesResult
+// { insertionsRemoved, deletionsRestored, movesReverted, propertyChangesReverted }
+```
+
+Rejects all tracked changes, restoring the document to its pre-change state. Takes a W3C DOM `Document`.
+
+### Extract revisions
+
+```typescript
+import { extractRevisions, getComments } from '@usejunior/docx-core';
+
+const zip = await DocxZip.load(buffer);
+const documentXml = await zip.readText('word/document.xml');
+const doc = parseXml(documentXml);
+const comments = await getComments(zip, doc);
+
+const result = extractRevisions(doc, comments, { offset: 0, limit: 50 });
+// result: ExtractRevisionsResult
+// { changes: ParagraphRevision[], total_changes, has_more }
+```
+
+Returns structured per-paragraph revision records with `before_text`, `after_text`, revision entries (`type`, `text`, `author`), and associated comments.
+
+`RevisionType` values: `'INSERTION' | 'DELETION' | 'MOVE_FROM' | 'MOVE_TO' | 'FORMAT_CHANGE'`
+
+## Utilities
+
+### XML helpers (`xml.ts`)
+
+```typescript
+import { parseXml, serializeXml } from '@usejunior/docx-core';
+```
+
+Parse an XML string into a W3C `Document` and serialize it back. These are thin wrappers around `@xmldom/xmldom`.
+
+### DOM helpers (`dom-helpers.ts`)
+
+```typescript
+import { getDirectChildrenByName, isWElement } from '@usejunior/docx-core';
+```
+
+Typed helpers for navigating OOXML DOMs without `getElementsByTagName` traversal overhead.
+
+### Namespaces (`namespaces.ts`)
+
+```typescript
+import { OOXML, W } from '@usejunior/docx-core';
+
+OOXML.W_NS  // 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+OOXML.REL_NS // relationship namespace URI
+W.body      // 'body'
+W.p         // 'p'
+W.r         // 'r'
+// ...
+```
+
+Centralized namespace and local-name constants used throughout the library.

@@ -1,0 +1,103 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Safe Docx",
+  "projectDescription": "A TypeScript MCP server and library for surgical, formatting-preserving edits to existing Microsoft Word .docx files in AI agent workflows.",
+  "theme": "luma",
+  "primaryColor": "#273759",
+  "lightColor": "#b1b2b2",
+  "darkColor": "#50504a",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "MCP Server",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Workflows",
+            "pages": [
+              "guides/editing-documents",
+              "guides/comparing-documents",
+              "guides/comments-and-footnotes",
+              "guides/batch-editing",
+              "guides/golden-prompts"
+            ]
+          },
+          {
+            "group": "Tool Reference",
+            "pages": [
+              "tools/read-search",
+              "tools/edit-layout",
+              "tools/compare-revisions",
+              "tools/comments-footnotes",
+              "tools/session-planning"
+            ]
+          },
+          {
+            "group": "Security & Trust",
+            "pages": [
+              "trust/path-policy",
+              "trust/archive-guards",
+              "trust/privacy"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Library API",
+        "groups": [
+          {
+            "group": "docx-core",
+            "pages": [
+              "api/overview",
+              "api/compare-documents",
+              "api/primitives",
+              "api/comparison-options"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "api/google-docs",
+              "api/deployment",
+              "api/contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "MCP server for AI agent DOCX editing via npx",
+    "Formatting-preserving text replacement and paragraph insertion",
+    "Tracked-changes output for document comparison and review",
+    "Comment and footnote management as first-class operations",
+    "Batch edit planning with multi-agent merge and conflict detection",
+    "Local-first processing — no document content sent to external servers",
+    "Pure TypeScript runtime with no Python or .NET dependency",
+    "Google Docs support in addition to local .docx files"
+  ],
+  "publicApiSurface": [
+    "compareDocuments(original, revised, options): CompareResult",
+    "read_file — Read document content with pagination",
+    "grep — Search paragraphs with regex",
+    "replace_text — Replace text preserving formatting",
+    "insert_paragraph — Insert paragraph before/after anchor",
+    "save — Save clean and/or tracked-changes output",
+    "compare_documents — Compare two DOCX files into tracked-changes output",
+    "extract_revisions — Extract tracked changes as structured JSON",
+    "add_comment / get_comments / delete_comment",
+    "add_footnote / get_footnotes / update_footnote / delete_footnote",
+    "init_plan / merge_plans / apply_plan — Batch editing workflow",
+    "format_layout — Apply paragraph spacing and table layout controls",
+    "accept_changes — Accept all tracked changes",
+    "clear_formatting — Remove run-level formatting",
+    "has_tracked_changes — Check for revision markup"
+  ]
+}

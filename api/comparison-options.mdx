@@ -1,0 +1,146 @@
+---
+title: "Comparison options reference"
+description: "Full reference for CompareOptions, CompareResult, and reconstruction modes"
+---
+
+## CompareOptions
+
+```typescript
+export interface CompareOptions {
+  author?: string;
+  date?: Date;
+  ignoreFormatting?: boolean;
+  premergeRuns?: boolean;
+  reconstructionMode?: ReconstructionMode;
+  engine?: 'wmlcomparer' | 'atomizer' | 'auto';
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `author` | `string` | `"Comparison"` | Author name written into `w:author` on all generated revision elements |
+| `date` | `Date` | Current time | Revision timestamp written into `w:date` |
+| `ignoreFormatting` | `boolean` | `true` | When `true`, formatting-only differences are not surfaced as tracked changes |
+| `premergeRuns` | `boolean` | `true` | Merge adjacent `<w:r>` runs with identical formatting before comparison. Reduces overly-granular diffs in fragmented documents |
+| `reconstructionMode` | `'rebuild' \| 'inplace'` | `'rebuild'` | How to reconstruct the output DOCX (see below) |
+| `engine` | `'wmlcomparer' \| 'atomizer' \| 'auto'` | `'auto'` | Comparison engine. `'auto'` currently resolves to `'atomizer'` |
+
+## Reconstruction modes
+
+The reconstruction mode controls how the atomizer engine builds the output `document.xml`.
+
+### `'rebuild'` (default)
+
+Rebuilds `document.xml` from scratch using the comparison result. This mode is more stable for accept/reject workflows because the output XML is structurally clean. It is the recommended mode for production use.
+
+When using the MCP `save` tool, the `fail_on_rebuild_fallback` parameter has no effect when `'rebuild'` is the requested mode — fallback only occurs when `'inplace'` is requested and cannot be satisfied.
+
+### `'inplace'`
+
+Modifies the revised document AST in place, inserting tracked-change wrappers around diffed atoms. This mode preserves more of the original XML structure (hyperlinks, SDTs, table structure) but is more experimental. If the safety checks fail, the atomizer falls back to `'rebuild'` and reports `fallbackReason` and `fallbackDiagnostics` in the result.
+
+## Fallback behavior
+
+When `'inplace'` is requested but the round-trip safety checks fail, the atomizer automatically falls back to `'rebuild'`. You can detect this:
+
+```typescript
+const result = await compareDocuments(original, revised, {
+  reconstructionMode: 'inplace',
+});
+
+if (result.fallbackReason) {
+  console.warn('Fell back to rebuild:', result.fallbackReason);
+  console.log('Diagnostics:', result.fallbackDiagnostics);
+}
+```
+
+To treat a fallback as a hard error, check explicitly and throw:
+
+```typescript
+if (
+  result.reconstructionModeRequested === 'inplace' &&
+  result.reconstructionModeUsed === 'rebuild'
+) {
+  throw new Error(`Reconstruction fallback: ${result.fallbackReason}`);
+}
+```
+
+The MCP `save` tool exposes this as `fail_on_rebuild_fallback: true`.
+
+## ReconstructionFallbackDiagnostics
+
+```typescript
+export interface ReconstructionFallbackDiagnostics {
+  attempts: ReconstructionAttemptDiagnostics[];
+}
+
+export interface ReconstructionAttemptDiagnostics {
+  pass:
+    | 'inplace_word_split'
+    | 'inplace_run_level'
+    | 'inplace_word_split_cross_run'
+    | 'inplace_run_level_cross_run';
+  checks: ReconstructionSafetyChecks;
+  failedChecks: ReconstructionSafetyCheckName[];
+  failureDetails?: ReconstructionSafetyFailureDetails;
+  firstDiffSummary?: ReconstructionSafetyFailureSummary;
+}
+```
+
+`fallbackDiagnostics` is populated only when the atomizer falls back. It records every inplace reconstruction pass that was attempted and the specific safety checks that prevented it from being used.
+
+## Safety checks
+
+The atomizer runs these checks on its inplace reconstruction passes before committing the output:
+
+```typescript
+export type ReconstructionSafetyCheckName =
+  | 'acceptText'
+  | 'rejectText'
+  | 'acceptBookmarks'
+  | 'rejectBookmarks'
+  | 'fieldStructure';
+```
+
+| Check | Description |
+|---|---|
+| `acceptText` | After accepting all changes, paragraph text must match the revised document |
+| `rejectText` | After rejecting all changes, paragraph text must match the original document |
+| `acceptBookmarks` | Bookmark IDs and references must be consistent after accepting |
+| `rejectBookmarks` | Bookmark IDs and references must be consistent after rejecting |
+| `fieldStructure` | `w:fldChar` begin/separate/end sequences must be balanced |
+
+A check failure means the reconstructed output could not be safely accept/rejected in Word, so the atomizer falls back.
+
+## CompareStats
+
+```typescript
+export interface CompareStats {
+  insertions: number;
+  deletions: number;
+  modifications: number;
+}
+```
+
+| Field | Description |
+|---|---|
+| `insertions` | Number of inserted text atoms in the output |
+| `deletions` | Number of deleted text atoms in the output |
+| `modifications` | Number of formatting or property modifications |
+
+## CompareResult
+
+```typescript
+export interface CompareResult {
+  document: Buffer;
+  stats: CompareStats;
+  engine: 'wmlcomparer' | 'atomizer';
+  reconstructionModeRequested?: ReconstructionMode;
+  reconstructionModeUsed?: ReconstructionMode;
+  fallbackReason?: ReconstructionFallbackReason;
+  fallbackDiagnostics?: ReconstructionFallbackDiagnostics;
+}
+
+export type ReconstructionFallbackReason = 'round_trip_safety_check_failed';
+export type ReconstructionMode = 'rebuild' | 'inplace';
+```

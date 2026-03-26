@@ -1,0 +1,156 @@
+---
+title: "Editing documents"
+description: "How to make surgical, formatting-preserving edits to existing .docx files"
+---
+
+Safe Docx lets you read, search, and precisely modify existing Word documents without touching their formatting. This guide walks through the core editing workflow.
+
+<Info>
+  All edits operate on an in-memory session. Nothing is written to disk until you call `save`.
+</Info>
+
+## Core editing workflow
+
+<Steps>
+  <Step title="Read the file and discover paragraph IDs">
+    Call `read_file` with the path to your `.docx` file. Safe Docx returns the document content annotated with `_bk_*` paragraph IDs.
+
+    ```text
+    Use safe-docx to edit /absolute/path/to/Agreement.docx.
+    Start by reading the file to find the paragraph IDs.
+    ```
+
+    Each paragraph in the output is tagged with a stable identifier like `_bk_42` or `_bk_p3c`. These IDs are your handles for all subsequent edit operations. You must reference them exactly — including the `_bk_` prefix.
+
+    <Warning>
+      Paragraph IDs are document-specific and not sequential across files. Always read the target file first to obtain the correct IDs. Do not guess or reuse IDs from a different document.
+    </Warning>
+  </Step>
+
+  <Step title="Choose a read format">
+    `read_file` supports three output formats via the `format` parameter:
+
+    | Format   | Description |
+    |----------|-------------|
+    | `toon`   | Compact, token-efficient format designed for agent consumption. Recommended for most workflows. |
+    | `json`   | Structured JSON with full paragraph and run metadata. |
+    | `simple` | Plain text output with minimal markup. |
+
+    For agent workflows, use `toon` to minimize token usage:
+
+    ```json
+    {
+      "file_path": "/absolute/path/to/Agreement.docx",
+      "format": "toon"
+    }
+    ```
+
+    By default, `read_file` is token-limited to approximately 14k tokens and returns pagination metadata (`has_more`, `next_offset`). Use `offset` and `limit` to paginate through large documents.
+  </Step>
+
+  <Step title="Search for specific text">
+    Use `grep` to locate paragraphs containing specific terms without reading the entire document:
+
+    ```json
+    {
+      "file_path": "/absolute/path/to/Agreement.docx",
+      "pattern": "Termination",
+      "case_sensitive": false
+    }
+    ```
+
+    `grep` returns matching paragraph IDs and surrounding context. You can also search multiple files at once using the `file_paths` array for stateless multi-file search.
+  </Step>
+
+  <Step title="Replace text in a paragraph">
+    Call `replace_text` with the paragraph ID, the exact text to replace, and the replacement:
+
+    ```json
+    {
+      "file_path": "/absolute/path/to/Agreement.docx",
+      "target_paragraph_id": "_bk_42",
+      "old_string": "either party may terminate this Agreement upon 30 days notice",
+      "new_string": "either party may terminate this Agreement upon 15 days written notice",
+      "instruction": "Reduce notice period from 30 to 15 days"
+    }
+    ```
+
+    | Parameter | Required | Description |
+    |-----------|----------|-------------|
+    | `target_paragraph_id` | Yes | The `_bk_*` ID of the paragraph to edit |
+    | `old_string` | Yes | Exact text to find in the paragraph |
+    | `new_string` | Yes | Replacement text |
+    | `instruction` | Yes | Human-readable description of the change (used in tracked-changes metadata) |
+
+    If the target text is fragmented across formatting runs, set `normalize_first: true` to merge format-identical adjacent runs before searching.
+
+    <Warning>
+      `old_string` must match the paragraph text exactly, including whitespace. If the match fails, check that the paragraph ID is correct and that you are not including `[^N]` footnote markers, which are display-only.
+    </Warning>
+  </Step>
+
+  <Step title="Insert a new paragraph">
+    Use `insert_paragraph` to add content before or after an existing paragraph:
+
+    ```json
+    {
+      "file_path": "/absolute/path/to/Agreement.docx",
+      "positional_anchor_node_id": "_bk_42",
+      "new_string": "This Agreement is governed by the laws of the State of Delaware.",
+      "instruction": "Add governing law clause after termination section",
+      "position": "AFTER"
+    }
+    ```
+
+    Set `position` to `"BEFORE"` or `"AFTER"` relative to the anchor paragraph. Use `style_source_id` to clone paragraph formatting from a different paragraph instead of the anchor.
+  </Step>
+
+  <Step title="Save the output">
+    Call `save` to write the result to disk. You can save a clean version, a tracked-changes version, or both:
+
+    ```json
+    {
+      "file_path": "/absolute/path/to/Agreement.docx",
+      "save_to_local_path": "/absolute/path/to/Agreement.clean.docx",
+      "tracked_save_to_local_path": "/absolute/path/to/Agreement.tracked.docx",
+      "save_format": "both",
+      "tracked_changes_author": "AI Agent"
+    }
+    ```
+
+    | `save_format` value | Output |
+    |---------------------|--------|
+    | `clean` | Final document with no revision markup |
+    | `tracked` | Document with all changes marked as tracked revisions |
+    | `both` | Both outputs in one call |
+  </Step>
+</Steps>
+
+## Real agent prompt example
+
+This prompt reliably produces a clean and tracked-changes output:
+
+```text
+Use safe-docx to edit /absolute/path/to/Agreement.docx.
+1) Read the file and identify the paragraph IDs that contain "Term" and "Termination".
+2) Replace the clause text in those paragraphs with clearer language while preserving formatting.
+3) Save both outputs:
+   - clean: /absolute/path/to/Agreement.clean.docx
+   - tracked changes: /absolute/path/to/Agreement.tracked.docx
+Return a short summary of what changed and list the paragraph IDs edited.
+```
+
+<Tip>
+  Always specify absolute paths in your prompts. Relative paths are more likely to be misinterpreted by the agent or rejected by the path policy.
+</Tip>
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Comparing documents" icon="code-compare" href="/guides/comparing-documents">
+    Produce tracked-changes output from two DOCX versions.
+  </Card>
+  <Card title="Batch editing" icon="layer-group" href="/guides/batch-editing">
+    Plan and apply batches of edits with multi-agent coordination.
+  </Card>
+</CardGroup>

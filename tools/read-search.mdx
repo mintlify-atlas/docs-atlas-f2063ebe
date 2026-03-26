@@ -1,0 +1,137 @@
+---
+title: "Read & search tools"
+description: "Tools for reading document content and searching paragraphs"
+---
+
+## `read_file`
+
+Read document content from a DOCX file or Google Doc. Output is token-limited to approximately 14k tokens by default and includes pagination metadata (`has_more`, `next_offset`). Use `offset` and `limit` to page through long documents.
+
+<Note>
+  The default `toon` format is compact and agent-friendly. It renders inline formatting as short tags — `<b>bold</b>`, `<i>italic</i>`, `<u>underline</u>`, `<highlighting>highlighted</highlighting>`, `<a href="...">link</a>` — so you can see both content and structure without parsing raw XML. Switch to `json` for structured output or `simple` for plain paragraph text.
+</Note>
+
+**Hints:** readOnly — does not modify the document.
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file. Provide either `file_path` or `google_doc_id`.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>
+
+<ParamField path="offset" type="number">
+  1-based paragraph offset for pagination. Negative values count from the end of the document.
+</ParamField>
+
+<ParamField path="limit" type="number">
+  Maximum number of paragraphs to return. When omitted, output is token-limited to approximately 14k tokens and includes `has_more` and `next_offset` in the response.
+</ParamField>
+
+<ParamField path="node_ids" type="string[]">
+  Fetch specific paragraphs by their `_bk_*` IDs instead of a contiguous range.
+</ParamField>
+
+<ParamField path="format" type="string">
+  Output format. One of `toon` (default, compact with inline tags), `json` (structured), or `simple` (plain text, no tags).
+</ParamField>
+
+<ParamField path="show_formatting" type="boolean">
+  When `true` (default), includes inline formatting tags (`<b>`, `<i>`, `<u>`, `<highlighting>`, `<a>`). Set to `false` to emit plain text with no inline tags.
+</ParamField>
+
+### Pagination example
+
+When the response contains `"has_more": true`, pass the returned `next_offset` value as the `offset` parameter in your next call to continue reading.
+
+```json
+{
+  "has_more": true,
+  "next_offset": 201
+}
+```
+
+---
+
+## `grep`
+
+Search paragraphs using regular expressions. Use `file_path` for session-based search, `file_paths` for stateless multi-file search, or `google_doc_id` for Google Docs.
+
+**Hints:** readOnly — does not modify any documents.
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file for session-based search.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>
+
+<ParamField path="file_paths" type="string[]">
+  Multiple file paths for stateless multi-file search. No session is created when using this parameter.
+</ParamField>
+
+<ParamField path="pattern" type="string">
+  A single regex pattern to search for.
+</ParamField>
+
+<ParamField path="patterns" type="string[]">
+  Multiple regex patterns. Matches any paragraph that satisfies at least one pattern.
+</ParamField>
+
+<ParamField path="case_sensitive" type="boolean">
+  When `true`, the search is case-sensitive. Defaults to `false`.
+</ParamField>
+
+<ParamField path="whole_word" type="boolean">
+  When `true`, matches only whole words.
+</ParamField>
+
+<ParamField path="max_results" type="number">
+  Maximum number of results to return.
+</ParamField>
+
+<ParamField path="context_chars" type="number">
+  Number of surrounding characters to include in each result snippet.
+</ParamField>
+
+<ParamField path="dedupe_by_paragraph" type="boolean">
+  When `true`, returns at most one result per paragraph even if multiple matches exist.
+</ParamField>
+
+<ParamField path="search_xml" type="boolean">
+  When `true`, searches the raw XML (`word/document.xml`) instead of paragraph text. Useful for inspecting markup.
+</ParamField>
+
+<ParamField path="include_context" type="boolean">
+  When `false`, skips document view context such as list labels and headers, giving faster results. Defaults to `true`.
+</ParamField>
+
+---
+
+## `has_tracked_changes`
+
+Check whether the document body contains tracked-change markers, including insertions, deletions, moves, and property-change records.
+
+**Hints:** readOnly — does not modify the document.
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+---
+
+## `get_file_status`
+
+Return file and session metadata for an open document, including edit count, normalization stats, and cache information.
+
+**Hints:** readOnly — does not modify any documents.
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file. Provide either `file_path` or `google_doc_id`.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>

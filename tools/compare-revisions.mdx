@@ -1,0 +1,63 @@
+---
+title: "Compare & revision tools"
+description: "Tools for document comparison and extracting tracked changes as structured data"
+---
+
+## `compare_documents`
+
+Compare two DOCX documents and produce a tracked-changes output document that marks all differences between them.
+
+You can use this tool in two modes:
+
+- **Standalone comparison** — provide `original_file_path` and `revised_file_path` to compare any two files.
+- **Session comparison** — provide `file_path` to compare the current in-memory session state against the original file that was loaded.
+
+<Note>
+  The output document uses Word's native tracked-changes format. Open it in any Word-compatible application to review, accept, or reject changes.
+</Note>
+
+**Hints:** readOnly — does not modify the source documents.
+
+<ParamField path="original_file_path" type="string">
+  Path to the original DOCX file. Use with `revised_file_path` for standalone comparison.
+</ParamField>
+
+<ParamField path="revised_file_path" type="string">
+  Path to the revised DOCX file. Use with `original_file_path` for standalone comparison.
+</ParamField>
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file. Use instead of `original_file_path` + `revised_file_path` to compare session edits against the original.
+</ParamField>
+
+<ParamField path="save_to_local_path" type="string" required>
+  Destination path for the tracked-changes DOCX output.
+</ParamField>
+
+<ParamField path="author" type="string" default="Comparison">
+  Author name attributed to the tracked changes in the output.
+</ParamField>
+
+<ParamField path="engine" type="string" default="auto">
+  Comparison engine to use. One of `auto` or `atomizer`.
+</ParamField>
+
+---
+
+## `extract_revisions`
+
+Extract tracked changes from a document as structured JSON. Each entry includes before and after text for the affected paragraph, revision details, and any associated comments. Supports pagination for documents with many revisions.
+
+**Hints:** readOnly — does not modify the document.
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="offset" type="number" default="0">
+  0-based offset for pagination. Use the offset returned in the previous response to fetch the next page.
+</ParamField>
+
+<ParamField path="limit" type="number" default="50">
+  Maximum number of revision entries to return per page. Accepted range: 1–500.
+</ParamField>

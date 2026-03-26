@@ -1,0 +1,279 @@
+---
+title: "Edit & layout tools"
+description: "Tools for making formatting-preserving edits and applying layout controls"
+---
+
+## `replace_text`
+
+Replace text within a paragraph identified by its `_bk_*` ID, preserving all run-level formatting. Works with DOCX files and Google Docs.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk.
+</Warning>
+
+<Note>
+  If a search fails because the target text is fragmented across multiple adjacent runs with identical formatting, set `normalize_first: true`. This merges those runs before searching, then restores them afterward.
+</Note>
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file. Provide either `file_path` or `google_doc_id`.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>
+
+<ParamField path="target_paragraph_id" type="string" required>
+  The `_bk_*` paragraph ID returned by `read_file` or `grep`.
+</ParamField>
+
+<ParamField path="old_string" type="string" required>
+  The exact text to find within the target paragraph.
+</ParamField>
+
+<ParamField path="new_string" type="string" required>
+  The replacement text.
+</ParamField>
+
+<ParamField path="instruction" type="string" required>
+  A plain-language description of the change. Stored in the edit history for auditing.
+</ParamField>
+
+<ParamField path="normalize_first" type="boolean">
+  Merge format-identical adjacent runs before searching, then restore them. Useful when text is fragmented across runs.
+</ParamField>
+
+---
+
+## `insert_paragraph`
+
+Insert a new paragraph immediately before or after an anchor paragraph identified by its `_bk_*` ID. Works with DOCX files and Google Docs.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk.
+</Warning>
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file. Provide either `file_path` or `google_doc_id`.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>
+
+<ParamField path="positional_anchor_node_id" type="string" required>
+  The `_bk_*` paragraph ID that determines the insertion position.
+</ParamField>
+
+<ParamField path="new_string" type="string" required>
+  Text content of the new paragraph.
+</ParamField>
+
+<ParamField path="instruction" type="string" required>
+  A plain-language description of the change. Stored in the edit history for auditing.
+</ParamField>
+
+<ParamField path="position" type="string" default="AFTER">
+  Where to insert the paragraph relative to the anchor. Either `BEFORE` or `AFTER`.
+</ParamField>
+
+<ParamField path="style_source_id" type="string">
+  A `_bk_*` paragraph ID whose formatting (`pPr` and template run) the new paragraph should clone, instead of copying from the anchor. Falls back to the anchor with a warning if the ID is not found.
+</ParamField>
+
+---
+
+## `accept_changes`
+
+Accept all tracked changes in the document body, producing a clean document with no revision markup. Returns acceptance statistics.
+
+<Warning>
+  Accepting changes is irreversible within the current session. The original revision markup is discarded.
+</Warning>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+---
+
+## `format_layout`
+
+Apply layout controls including paragraph spacing, table row height, and cell padding. Google Docs supports paragraph spacing only.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk.
+</Warning>
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file. Provide either `file_path` or `google_doc_id`.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>
+
+<ParamField path="strict" type="boolean">
+  When `true`, fails on any layout value that cannot be applied exactly.
+</ParamField>
+
+<ParamField path="paragraph_spacing" type="object">
+  Configure spacing for one or more paragraphs. All sub-fields are optional.
+
+  <Expandable title="paragraph_spacing fields">
+    <ParamField path="paragraph_ids" type="string[]">
+      Target paragraph IDs. If omitted, applies to all paragraphs.
+    </ParamField>
+    <ParamField path="before_twips" type="number">
+      Space before the paragraph, in twips (1/1440 inch).
+    </ParamField>
+    <ParamField path="after_twips" type="number">
+      Space after the paragraph, in twips.
+    </ParamField>
+    <ParamField path="line_twips" type="number">
+      Line height, in twips.
+    </ParamField>
+    <ParamField path="line_rule" type="string">
+      How `line_twips` is interpreted. One of `auto`, `exact`, or `atLeast`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="row_height" type="object">
+  Configure height for table rows. All sub-fields are optional.
+
+  <Expandable title="row_height fields">
+    <ParamField path="table_indexes" type="number[]">
+      Zero-based indexes of the tables to target.
+    </ParamField>
+    <ParamField path="row_indexes" type="number[]">
+      Zero-based indexes of the rows to target.
+    </ParamField>
+    <ParamField path="value_twips" type="number">
+      Row height value, in twips.
+    </ParamField>
+    <ParamField path="rule" type="string">
+      Height rule. One of `auto`, `exact`, or `atLeast`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="cell_padding" type="object">
+  Configure padding for table cells. All sub-fields are optional.
+
+  <Expandable title="cell_padding fields">
+    <ParamField path="table_indexes" type="number[]">
+      Zero-based indexes of the tables to target.
+    </ParamField>
+    <ParamField path="row_indexes" type="number[]">
+      Zero-based indexes of the rows to target.
+    </ParamField>
+    <ParamField path="cell_indexes" type="number[]">
+      Zero-based indexes of the cells to target.
+    </ParamField>
+    <ParamField path="top_dxa" type="number">
+      Top cell padding, in DXA units (twentieths of a point).
+    </ParamField>
+    <ParamField path="bottom_dxa" type="number">
+      Bottom cell padding, in DXA units.
+    </ParamField>
+    <ParamField path="left_dxa" type="number">
+      Left cell padding, in DXA units.
+    </ParamField>
+    <ParamField path="right_dxa" type="number">
+      Right cell padding, in DXA units.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+---
+
+## `clear_formatting`
+
+Clear specific run-level formatting properties from paragraphs. When no `paragraph_ids` are provided, the operation applies to every paragraph in the document.
+
+<Warning>
+  Formatting removal cannot be undone within the current session.
+</Warning>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="paragraph_ids" type="string[]">
+  `_bk_*` paragraph IDs to target. If omitted, clears formatting from all paragraphs.
+</ParamField>
+
+<ParamField path="clear_highlight" type="boolean">
+  Remove highlight formatting.
+</ParamField>
+
+<ParamField path="clear_bold" type="boolean">
+  Remove bold formatting.
+</ParamField>
+
+<ParamField path="clear_italic" type="boolean">
+  Remove italic formatting.
+</ParamField>
+
+<ParamField path="clear_underline" type="boolean">
+  Remove underline formatting.
+</ParamField>
+
+<ParamField path="clear_color" type="boolean">
+  Remove font color.
+</ParamField>
+
+<ParamField path="clear_font" type="boolean">
+  Remove font family and size.
+</ParamField>
+
+---
+
+## `save`
+
+Save the current document state to disk. For DOCX files, you can save a clean version, a tracked-changes version, or both. For Google Docs, the default behavior creates a checkpoint and returns the `revisionId`; passing a local path exports the document as DOCX.
+
+<Warning>
+  When `allow_overwrite` is `false` (the default), saving to an existing path raises an error. Set `allow_overwrite: true` to replace the file.
+</Warning>
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file. Provide either `file_path` or `google_doc_id`.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>
+
+<ParamField path="save_to_local_path" type="string" required>
+  Destination path for the saved file.
+</ParamField>
+
+<ParamField path="clean_bookmarks" type="boolean">
+  Strip internal `_bk_*` bookmark annotations from the saved output.
+</ParamField>
+
+<ParamField path="save_format" type="string" default="clean">
+  What to save. One of `clean` (no revision markup), `tracked` (all edits as tracked changes), or `both` (saves two files).
+</ParamField>
+
+<ParamField path="allow_overwrite" type="boolean">
+  When `true`, overwrites an existing file at `save_to_local_path`. Defaults to `false`.
+</ParamField>
+
+<ParamField path="tracked_save_to_local_path" type="string">
+  Destination path for the tracked-changes output when `save_format` is `both`.
+</ParamField>
+
+<ParamField path="tracked_changes_author" type="string">
+  Author name attributed to tracked changes in the output.
+</ParamField>
+
+<ParamField path="tracked_changes_engine" type="string">
+  Comparison engine used to generate tracked changes. One of `auto` or `atomizer`.
+</ParamField>
+
+<ParamField path="fail_on_rebuild_fallback" type="boolean">
+  When `true`, returns an error instead of saving if the comparison engine falls back to rebuild mode, which destroys table structure. Defaults to `false`.
+</ParamField>

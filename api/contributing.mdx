@@ -1,0 +1,119 @@
+---
+title: "Contributing"
+description: "How to contribute to Safe Docx"
+---
+
+Contributions are welcome. Please follow the [Code of Conduct](https://github.com/UseJunior/safe-docx/blob/main/CODE_OF_CONDUCT.md) in issues, pull requests, and discussions.
+
+## Development setup
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/UseJunior/safe-docx.git
+    cd safe-docx
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    npm ci
+    ```
+  </Step>
+
+  <Step title="Build all packages">
+    ```bash
+    npm run build
+    ```
+  </Step>
+</Steps>
+
+## Dev commands
+
+Run from the repo root:
+
+| Command | Description |
+|---|---|
+| `npm run build` | Build all packages |
+| `npm run lint:workspaces` | Run TypeScript type-check across all packages |
+| `npm run test:run` | Run all tests (Vitest) |
+| `npm run check:spec-coverage` | Validate OpenSpec traceability coverage |
+| `npm run test:coverage:packages` | Run tests with coverage reports |
+
+All checks must pass locally before pushing. The pre-submit checklist:
+
+1. `npm run build` passes
+2. `npm run lint:workspaces` passes
+3. `npm run test:run` passes
+4. `npm run check:spec-coverage` passes
+
+## Running tests for a specific package
+
+```bash
+# Core library only
+npm run test:run -w @usejunior/docx-core
+
+# MCP server only
+npm run test:run -w @usejunior/docx-mcp
+
+# Build a single package
+npm run build -w @usejunior/docx-core
+```
+
+## Repository layout
+
+```
+packages/
+  docx-core/   # OOXML comparison + primitives
+  docx-mcp/    # MCP server and editing tools
+openspec/      # Specs and change deltas
+```
+
+## Branch naming
+
+Create a branch for every change — never commit directly to `main`.
+
+| Branch type | Format | Example |
+|---|---|---|
+| Issue work | `{issue}-{description}-{YYYYMMDD}` | `42-add-redline-support-20260221` |
+| Minor fixes | `tweak-{description}` | `tweak-fix-typo-in-readme` |
+
+## Commit format
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+type(scope): imperative subject
+
+Body explaining WHY this change was made, not just what changed.
+Context, trade-offs, and alternatives considered are all welcome here.
+Longer is better.
+
+Fixes: #42
+```
+
+Valid types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `perf`, `style`
+
+Scope to the affected package:
+
+```
+fix(docx-core): correct bookmark ID collision in inplace reconstruction
+feat(docx-mcp): add delete_comment tool
+docs(contributing): clarify branch naming rules
+```
+
+Reference issues in the commit body with `Fixes: #N` (closes) or `Ref: #N` (related).
+
+## Pull request guidelines
+
+- Keep PRs small and focused — one concern per PR
+- Include test evidence for behavior changes
+- Include screenshots or gifs for any PR that touches visible output (diff rendering, formatting)
+- For new capabilities or behavior shifts, include an OpenSpec change
+- **Before review begins**: interactive rebase to clean up history is encouraged
+- **After review begins**: do not force push — reviewers need to see incremental changes
+- **After review completes**: squash merge or rebase to produce a clean history on `main`
+
+## Issues and discussions
+
+Open issues at [github.com/UseJunior/safe-docx/issues](https://github.com/UseJunior/safe-docx/issues).

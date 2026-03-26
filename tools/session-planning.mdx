@@ -1,0 +1,111 @@
+---
+title: "Session & planning tools"
+description: "Tools for managing document sessions and coordinating multi-agent edit plans"
+---
+
+## `init_plan`
+
+Initialize revision-bound context metadata for a document, enabling coordinated multi-agent planning. The returned plan object captures the current document revision so that downstream tools can detect stale edits.
+
+**Hints:** readOnly — does not modify the document.
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="plan_name" type="string">
+  Human-readable name for the plan. Useful for logging and debugging in multi-agent workflows.
+</ParamField>
+
+<ParamField path="orchestrator_id" type="string">
+  Identifier for the orchestrating agent. Stored in the plan metadata.
+</ParamField>
+
+---
+
+## `merge_plans`
+
+Deterministically merge multiple sub-agent plans into a single ordered plan and detect hard conflicts before any edits are applied. Use this before calling `apply_plan` when multiple agents have independently produced edit plans against the same document.
+
+**Hints:** readOnly — does not modify any documents.
+
+<Note>
+  A hard conflict occurs when two plans attempt to edit the same paragraph in an incompatible way, for example both replacing different text in the same `_bk_*` node. Conflicts are reported before apply so you can resolve them without touching the document.
+</Note>
+
+<ParamField path="plans" type="object[]" required>
+  Array of plan objects returned by `init_plan` or produced by sub-agents. Each object must be a valid plan structure.
+</ParamField>
+
+<ParamField path="fail_on_conflict" type="boolean">
+  When `true`, return an error immediately if any hard conflict is detected instead of returning a partial merged plan. Defaults to `false`.
+</ParamField>
+
+<ParamField path="require_shared_base_revision" type="boolean">
+  When `true`, return an error if the plans were not all initialized from the same document revision. Helps prevent merging stale plans.
+</ParamField>
+
+---
+
+## `apply_plan`
+
+Validate and apply a batch of edit steps to a document in a single call. All steps are validated first; the tool applies them only if every step passes validation. Accepts steps inline or from a JSON file, and is compatible with the output of `merge_plans`.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk. If any step fails validation, no edits are applied.
+</Warning>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="steps" type="object[]">
+  Inline array of edit steps. Each step requires a `step_id`, an `operation`, and operation-specific fields. Mutually exclusive with `plan_file_path`.
+</ParamField>
+
+<ParamField path="plan_file_path" type="string">
+  Path to a `.json` file containing an array of edit steps. Mutually exclusive with `steps`.
+</ParamField>
+
+### Step structure
+
+Each step is a JSON object with a `step_id`, an `operation` (currently `replace_text` or `insert_paragraph`), and the parameters required by that operation.
+
+```json
+[
+  {
+    "step_id": "step-1",
+    "operation": "replace_text",
+    "target_paragraph_id": "_bk_abc123",
+    "old_string": "original text",
+    "new_string": "replacement text",
+    "instruction": "Update the term definition"
+  }
+]
+```
+
+---
+
+## `close_file`
+
+Close an open document session and release associated resources. Pass `clear_all: true` with `confirm: true` to close all open sessions at once.
+
+<Warning>
+  Closing a session discards any unsaved in-memory edits. Call `save` before closing if you need to keep your changes.
+</Warning>
+
+<ParamField path="file_path" type="string">
+  Path to the DOCX file to close. Provide either `file_path` or `google_doc_id`.
+</ParamField>
+
+<ParamField path="google_doc_id" type="string">
+  Google Doc ID or URL. Extract the ID from the URL: `docs.google.com/document/d/{ID}/edit`.
+</ParamField>
+
+<ParamField path="clear_all" type="boolean">
+  When `true`, closes all open sessions. Requires `confirm: true`.
+</ParamField>
+
+<ParamField path="confirm" type="boolean">
+  Required confirmation flag when using `clear_all`. Set to `true` to proceed.
+</ParamField>

@@ -1,0 +1,155 @@
+---
+title: "Comments & footnote tools"
+description: "Tools for managing comment threads and footnotes"
+---
+
+## `add_comment`
+
+Add a comment or a threaded reply to a document.
+
+- To add a **root comment**, provide `target_paragraph_id`. Optionally, provide `anchor_text` to anchor the comment to a specific span of text within the paragraph. If `anchor_text` is omitted, the comment anchors to the entire paragraph.
+- To add a **threaded reply**, provide `parent_comment_id` with the ID of the comment you want to reply to.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk.
+</Warning>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="target_paragraph_id" type="string">
+  `_bk_*` paragraph ID to anchor the comment to. Required for root comments.
+</ParamField>
+
+<ParamField path="anchor_text" type="string">
+  Text within the paragraph to anchor the comment highlight to. If omitted, the comment anchors to the entire paragraph.
+</ParamField>
+
+<ParamField path="parent_comment_id" type="number">
+  ID of the parent comment. Provide this to add a threaded reply instead of a root comment.
+</ParamField>
+
+<ParamField path="author" type="string" required>
+  Comment author name.
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Comment body text.
+</ParamField>
+
+<ParamField path="initials" type="string">
+  Author initials displayed in the comment balloon. Defaults to the first letter of `author`.
+</ParamField>
+
+---
+
+## `get_comments`
+
+Retrieve all comments from the document, including IDs, authors, creation dates, body text, and the paragraph IDs each comment is anchored to. Threaded replies are included and nested under their parent.
+
+**Hints:** readOnly — does not modify the document.
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+---
+
+## `delete_comment`
+
+Delete a comment and all of its threaded replies. Deletion cascades to all descendants of the target comment.
+
+<Warning>
+  Deleting a comment also permanently removes all replies in its thread.
+</Warning>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="comment_id" type="number" required>
+  ID of the comment to delete. Retrieve comment IDs with `get_comments`.
+</ParamField>
+
+---
+
+## `get_footnotes`
+
+Retrieve all footnotes from the document, including IDs, display numbers, body text, and the paragraph IDs each footnote reference is anchored to.
+
+**Hints:** readOnly — does not modify the document.
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+---
+
+## `add_footnote`
+
+Add a footnote anchored to a paragraph. By default, the footnote reference is appended at the end of the paragraph. Use `after_text` to position the reference after a specific span of text.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk.
+</Warning>
+
+<Note>
+  The `[^N]` markers you see in `read_file` output are display-only indicators. They are not part of the paragraph's editable text and should not be included in `old_string` when calling `replace_text`.
+</Note>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="target_paragraph_id" type="string" required>
+  `_bk_*` paragraph ID to anchor the footnote to.
+</ParamField>
+
+<ParamField path="after_text" type="string">
+  Text after which to insert the footnote reference mark. If omitted, the reference is appended at the end of the paragraph.
+</ParamField>
+
+<ParamField path="text" type="string" required>
+  Footnote body text.
+</ParamField>
+
+---
+
+## `update_footnote`
+
+Update the text content of an existing footnote.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk.
+</Warning>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="note_id" type="number" required>
+  ID of the footnote to update. Retrieve footnote IDs with `get_footnotes`.
+</ParamField>
+
+<ParamField path="new_text" type="string" required>
+  New footnote body text.
+</ParamField>
+
+---
+
+## `delete_footnote`
+
+Delete a footnote and its reference mark from the document.
+
+<Warning>
+  This tool modifies the document in memory. Call `save` to persist the result to disk.
+</Warning>
+
+<ParamField path="file_path" type="string" required>
+  Path to the DOCX file.
+</ParamField>
+
+<ParamField path="note_id" type="number" required>
+  ID of the footnote to delete. Retrieve footnote IDs with `get_footnotes`.
+</ParamField>

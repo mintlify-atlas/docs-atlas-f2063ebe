@@ -1,0 +1,73 @@
+---
+title: "Deployment environments"
+description: "Where Safe Docx can run — from local MCP server to serverless edge functions"
+---
+
+Safe Docx's runtime is pure TypeScript with two lightweight dependencies (`@xmldom/xmldom` and `jszip`). It works in any JavaScript environment that supports Node.js-compatible Buffer and async I/O.
+
+## Supported environments
+
+| Environment | How to use |
+|---|---|
+| Local MCP server | `npx -y @usejunior/safe-docx` |
+| Cloudflare Workers / Durable Objects | Import `@usejunior/docx-core` directly |
+| Vercel Functions / workflow steps | Import `@usejunior/docx-core` directly |
+| AWS Lambda / Lambda@Edge | Import `@usejunior/docx-core` directly |
+| Docker / any container runtime | Run the MCP server or import the library |
+| Any V8 isolate or Node.js process | Import `@usejunior/docx-core` directly |
+
+## Node.js requirement
+
+```json
+"engines": {
+  "node": ">=18.0.0"
+}
+```
+
+Node.js 18 or later is required. The library uses ESM (`"type": "module"`).
+
+## No native dependencies
+
+Safe Docx has no native binary dependencies and no .NET prerequisite for supported API usage. All document processing runs in-process using:
+
+- `jszip` — DOCX zip container reading and writing
+- `@xmldom/xmldom` — OOXML XML parsing and DOM manipulation
+
+This means the same package deploys to Cloudflare Workers, AWS Lambda, Vercel Edge Functions, and standard Node.js servers without any build step changes or platform-specific binaries.
+
+## Local MCP server (default use case)
+
+For agent-driven document editing with Claude, Cursor, or other MCP-capable clients:
+
+```bash
+npx -y @usejunior/safe-docx
+```
+
+This starts the MCP server locally. No install required. The server exposes the full tool surface (`read_file`, `grep`, `replace_text`, `save`, `compare_documents`, etc.) over stdio.
+
+## Direct library import
+
+For programmatic use inside your own application — serverless functions, API routes, pipelines:
+
+```bash
+npm install @usejunior/docx-core
+```
+
+```typescript
+import { compareDocuments } from '@usejunior/docx-core';
+
+export async function handler(event) {
+  const original = Buffer.from(event.originalBase64, 'base64');
+  const revised = Buffer.from(event.revisedBase64, 'base64');
+
+  const result = await compareDocuments(original, revised);
+
+  return {
+    statusCode: 200,
+    body: result.document.toString('base64'),
+    headers: { 'Content-Type': 'application/octet-stream' },
+  };
+}
+```
+
+See [Library overview](/api/overview) for the full installation and quickstart guide.

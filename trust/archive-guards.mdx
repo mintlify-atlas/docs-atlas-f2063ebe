@@ -1,0 +1,94 @@
+---
+title: "Archive guards"
+description: Safe Docx's built-in protection against malformed or hostile .docx archives
+---
+
+A `.docx` file is a ZIP archive containing XML parts. Maliciously crafted archives — sometimes called ZIP bombs — can contain a small number of heavily compressed bytes that expand to gigabytes of data, or thousands of tiny entries that exhaust file descriptors. Safe Docx validates every archive before processing it to prevent resource exhaustion.
+
+## How the guards work
+
+Before any `.docx` content is parsed, Safe Docx inspects the ZIP entries and enforces four independent limits. If any limit is exceeded, the file is rejected immediately with a structured error and no further processing occurs.
+
+The limits are configurable through environment variables so you can tune them for your workload without modifying any code.
+
+## Guard limits
+
+<ParamField path="SAFE_DOCX_MAX_ARCHIVE_ENTRIES" type="integer" default="2000">
+  Maximum number of files (non-directory entries) allowed inside the `.docx` ZIP archive.
+
+  Standard Word documents contain between a few dozen and a few hundred parts. A legitimate document approaching or exceeding 2,000 entries is unusual. Raise this value only when working with documents that embed a very large number of images or embedded objects.
+
+  Error code when exceeded: `DOCX_ARCHIVE_TOO_MANY_ENTRIES`
+</ParamField>
+
+<ParamField path="SAFE_DOCX_MAX_UNCOMPRESSED_BYTES" type="integer" default="209715200">
+  Maximum total uncompressed size across all entries in the archive, in bytes. The default is 200 MB.
+
+  This limit guards against ZIP bombs that pack enormous content into a small compressed file. Raise this value if you regularly work with legitimate documents that contain large embedded media.
+
+  Error code when exceeded: `DOCX_ARCHIVE_UNCOMPRESSED_TOO_LARGE`
+</ParamField>
+
+<ParamField path="SAFE_DOCX_MAX_ENTRY_UNCOMPRESSED_BYTES" type="integer" default="52428800">
+  Maximum uncompressed size of any single entry inside the archive, in bytes. The default is 50 MB.
+
+  A single XML part or embedded file exceeding 50 MB uncompressed is extremely rare in practice. Raise this value if your documents contain unusually large embedded objects such as high-resolution images or video attachments.
+
+  Error code when exceeded: `DOCX_ARCHIVE_ENTRY_TOO_LARGE`
+</ParamField>
+
+<ParamField path="SAFE_DOCX_MAX_COMPRESSION_RATIO" type="integer" default="200">
+  Maximum allowed compression ratio for any single entry, calculated as `uncompressed_size / compressed_size`.
+
+  A ratio above 200 is a strong indicator of a deliberately hostile archive. Standard DOCX XML compresses to ratios well below this threshold. Raise this value only if you have independently verified that your documents contain legitimate high-ratio entries, and do so with caution.
+
+  Error code when exceeded: `DOCX_ARCHIVE_COMPRESSION_RATIO_TOO_HIGH`
+</ParamField>
+
+## Configuring the limits
+
+Set any of the environment variables before starting the MCP server:
+
+```bash
+# Allow up to 5,000 entries for documents with many embedded images
+export SAFE_DOCX_MAX_ARCHIVE_ENTRIES=5000
+
+# Allow archives that expand to up to 500 MB total
+export SAFE_DOCX_MAX_UNCOMPRESSED_BYTES=524288000
+
+# Allow individual entries up to 100 MB
+export SAFE_DOCX_MAX_ENTRY_UNCOMPRESSED_BYTES=104857600
+
+# Tighten the compression ratio limit for extra caution
+export SAFE_DOCX_MAX_COMPRESSION_RATIO=50
+```
+
+If an environment variable is set to a non-integer or a value less than or equal to zero, Safe Docx falls back to the default for that variable.
+
+## What happens when a limit is exceeded
+
+The tool that triggered the read returns a structured error response. The error includes:
+
+- An **error code** identifying which limit was exceeded (see the codes listed above)
+- A **message** with the actual value that triggered the limit and the configured maximum
+- A **hint** naming the environment variable to raise if the document is legitimate
+
+No content from the rejected archive is parsed or loaded into memory beyond what the ZIP inspection requires.
+
+<Warning>
+Do not raise `SAFE_DOCX_MAX_COMPRESSION_RATIO` unless you trust the source of the document. A very high compression ratio is the primary fingerprint of a ZIP bomb.
+</Warning>
+
+## When to raise the defaults
+
+The defaults cover the vast majority of real-world Word documents. You may need to increase a limit when:
+
+- Your documents embed many high-resolution images and bump into the entry size or total size limits.
+- A document management system produces `.docx` files with a large number of generated parts.
+- You are processing documents that were converted from other formats and carry unusually verbose XML.
+
+In all cases, prefer raising the specific limit that is being triggered rather than raising all limits at once.
+
+<Note>
+You can verify that the archive guards are working as expected by running the assumption test: `npm run test:run -w @usejunior/safe-docx -- test/assumption_archive_guard_limits.test.ts`
+</Note>
